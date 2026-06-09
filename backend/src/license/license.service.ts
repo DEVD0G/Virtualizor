@@ -1,17 +1,22 @@
 import {
-  BadRequestException, ForbiddenException, Injectable, Logger, OnModuleInit,
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash, randomBytes, verify as edVerify } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemStateService, InstallPhase } from './system-state.service';
 
 /**
- * Client zur EXTERNEN License API. Das Panel verwaltet keine Lizenzen —
- * es prüft Status, aktiviert Nodes und schaltet Features frei.
+ * Client to the EXTERNAL License API. The panel does not manage licenses —
+ * it validates status, activates nodes, and gates features.
  *
- * Alle Antworten des Servers sind Ed25519-signiert ({payload, signature},
- * beide base64). Der Public Key kommt aus LICENSE_PUBLIC_KEY. Cache-Einträge
- * werden bei jedem Lesen ERNEUT verifiziert — DB-Manipulation ist wirkungslos.
+ * All server responses are Ed25519-signed ({payload, signature}, both base64).
+ * The public key comes from LICENSE_PUBLIC_KEY. Cache entries are re-verified
+ * on every read — DB manipulation is ineffective.
  */
 
 export interface ValidationPayload {
@@ -38,6 +43,13 @@ export interface LicenseState {
   lastValidatedAt: string | null;
 }
 
+export interface FullState {
+  phase: InstallPhase;
+  installId: string;
+  fingerprint: string;
+  licenseState: LicenseState;
+}
+
 @Injectable()
 export class LicenseService implements OnModuleInit {
   private readonly logger = new Logger(LicenseService.name);
@@ -45,25 +57,65 @@ export class LicenseService implements OnModuleInit {
   private readonly publicKey = process.env.LICENSE_PUBLIC_KEY ?? '';
   private state: LicenseState = this.emptyState('unconfigured');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly systemState: SystemStateService,
+  ) {}
 
   async onModuleInit() {
-    await this.refresh().catch((err) => this.logger.warn(`Initiale Lizenzprüfung: ${err.message}`));
+    // Ensure singleton exists early so other services can read it.
+    await this.systemState.getState().catch((err) =>
+      this.logger.warn(`SystemState init: ${err.message}`),
+    );
+
+    const phase = await this.systemState.getPhase().catch(() => InstallPhase.locked);
+
+    if (phase === InstallPhase.active) {
+      // Non-blocking background refresh — don't block application boot.
+      this.refresh().catch((err) =>
+        this.logger.warn(`Background license refresh on boot: ${err.message}`),
+      );
+    } else {
+      this.state = this.emptyState('unconfigured');
+    }
   }
 
   @Cron(CronExpression.EVERY_6_HOURS)
   async scheduledValidation() {
-    await this.refresh().catch((err) => this.logger.warn(`Lizenzprüfung: ${err.message}`));
+    await this.refresh().catch((err) =>
+      this.logger.warn(`Scheduled license validation: ${err.message}`),
+    );
   }
 
   getState(): LicenseState {
     return this.state;
   }
 
+  async getFullState(): Promise<FullState> {
+    const phase = await this.systemState.getPhase();
+    const installId = await this.systemState.getInstallId();
+    const fingerprint = await this.systemState.getFingerprint();
+    return {
+      phase,
+      installId,
+      fingerprint,
+      licenseState: this.state,
+    };
+  }
+
   // ─── Feature Gates ─────────────────────────────────────────────────────────
 
-  /** Schreibende VM-Operationen erfordern active oder grace. Lese-/Power-Ops bleiben immer erlaubt. */
+  /**
+   * Throws if the system is locked (no license activated yet) or if the
+   * license has expired past the grace period.
+   */
   async assertWriteAllowed() {
+    const phase = await this.systemState.getPhase();
+    if (phase === InstallPhase.locked || phase === InstallPhase.activating) {
+      throw new ForbiddenException(
+        'System gesperrt — Lizenzaktivierung erforderlich',
+      );
+    }
     if (this.state.status === 'unlicensed') {
       throw new ForbiddenException(
         'Lizenz abgelaufen (Grace Period überschritten) — VM-Erstellung gesperrt. Bestehende VMs laufen weiter.',
@@ -72,53 +124,105 @@ export class LicenseService implements OnModuleInit {
   }
 
   async assertVmLimit() {
+    const phase = await this.systemState.getPhase();
+    if (phase === InstallPhase.locked || phase === InstallPhase.activating) {
+      throw new ForbiddenException(
+        'System gesperrt — Lizenzaktivierung erforderlich',
+      );
+    }
     const max = this.state.limits?.maxVms;
     if (!max) return;
     const count = await this.prisma.vm.count();
-    if (count >= max) throw new ForbiddenException(`Lizenz-Limit erreicht: max. ${max} VMs`);
+    if (count >= max)
+      throw new ForbiddenException(`Lizenz-Limit erreicht: max. ${max} VMs`);
   }
 
   async assertNodeLimit() {
+    const phase = await this.systemState.getPhase();
+    if (phase === InstallPhase.locked || phase === InstallPhase.activating) {
+      throw new ForbiddenException(
+        'System gesperrt — Lizenzaktivierung erforderlich',
+      );
+    }
     const max = this.state.limits?.maxNodes;
     if (!max) return;
     const count = await this.prisma.node.count();
-    if (count >= max) throw new ForbiddenException(`Lizenz-Limit erreicht: max. ${max} Nodes`);
+    if (count >= max)
+      throw new ForbiddenException(
+        `Lizenz-Limit erreicht: max. ${max} Nodes`,
+      );
   }
 
   hasFeature(feature: string): boolean {
     return this.state.features.includes(feature);
   }
 
-  // ─── Aktivierung & Validierung ─────────────────────────────────────────────
+  // ─── Activation & Validation ───────────────────────────────────────────────
 
   async activate(licenseKey: string) {
     if (!this.apiUrl || !this.publicKey) {
-      throw new BadRequestException('License API nicht konfiguriert (LICENSE_API_URL / LICENSE_PUBLIC_KEY)');
+      throw new BadRequestException(
+        'License API nicht konfiguriert (LICENSE_API_URL / LICENSE_PUBLIC_KEY)',
+      );
     }
-    const nodes = await this.prisma.node.findMany({ select: { id: true, fingerprint: true, hostname: true } });
-    for (const node of nodes) {
-      const { payload, raw, signature } = await this.callLicenseApi('/license/activate', licenseKey, {
-        nodeFingerprint: node.fingerprint,
-        hostname: node.hostname,
+
+    // Transition to activating so the UI can show progress.
+    await this.systemState.setActivating();
+
+    try {
+      // Activate per-node registrations on the license server.
+      const nodes = await this.prisma.node.findMany({
+        select: { id: true, fingerprint: true, hostname: true },
       });
-      await this.prisma.licenseActivation.upsert({
-        where: { nodeId: node.id },
-        update: { activationId: payload.activationId, rawPayload: raw, signature },
-        create: {
-          nodeId: node.id,
-          activationId: payload.activationId,
-          nodeFingerprint: node.fingerprint,
-          rawPayload: raw,
-          signature,
-        },
-      });
+      for (const node of nodes) {
+        const { payload, raw, signature } = await this.callLicenseApi(
+          '/license/activate',
+          licenseKey,
+          { nodeFingerprint: node.fingerprint, hostname: node.hostname },
+        );
+        await this.prisma.licenseActivation.upsert({
+          where: { nodeId: node.id },
+          update: {
+            activationId: payload.activationId,
+            rawPayload: raw,
+            signature,
+          },
+          create: {
+            nodeId: node.id,
+            activationId: payload.activationId,
+            nodeFingerprint: node.fingerprint,
+            rawPayload: raw,
+            signature,
+          },
+        });
+      }
+
+      // Persist the license key and transition to active.
+      process.env.LICENSE_KEY = licenseKey;
+      await this.systemState.setActive(licenseKey);
+
+      // Perform immediate full validation to populate in-memory state.
+      const result = await this.refresh();
+      await this.systemState.updateValidatedAt();
+      return result;
+    } catch (err) {
+      // Roll back to locked so the UI can retry.
+      await this.systemState.setLocked().catch(() => undefined);
+      throw err;
     }
-    process.env.LICENSE_KEY = licenseKey;
-    return this.refresh();
   }
 
   async refresh(): Promise<LicenseState> {
-    const licenseKey = process.env.LICENSE_KEY;
+    // If not yet active, resolve key from SystemState first.
+    const phase = await this.systemState.getPhase().catch(() => InstallPhase.locked);
+    let licenseKey = process.env.LICENSE_KEY;
+
+    if (!licenseKey && phase === InstallPhase.active) {
+      const ss = await this.systemState.getState();
+      licenseKey = ss.licenseKey ?? undefined;
+      if (licenseKey) process.env.LICENSE_KEY = licenseKey;
+    }
+
     if (!this.apiUrl || !this.publicKey || !licenseKey) {
       this.state = this.emptyState('unconfigured');
       return this.state;
@@ -130,37 +234,47 @@ export class LicenseService implements OnModuleInit {
 
     try {
       const nonce = randomBytes(32).toString('base64url');
-      const { payload, raw, signature } = await this.callLicenseApi('/license/validate', licenseKey, {
-        nodeFingerprints: fingerprints,
-        nonce,
-      });
+      const { payload, raw, signature } = await this.callLicenseApi(
+        '/license/validate',
+        licenseKey,
+        { nodeFingerprints: fingerprints, nonce },
+      );
       if (payload.nonce !== nonce) throw new Error('Nonce-Mismatch (Replay?)');
 
       await this.prisma.licenseCache.upsert({
         where: { licenseKeyHash: this.hash(licenseKey) },
         update: {
-          rawPayload: raw, signature, status: payload.status, tier: payload.tier,
+          rawPayload: raw,
+          signature,
+          status: payload.status,
+          tier: payload.tier,
           issuedAt: new Date(payload.issuedAt),
           expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
           fetchedAt: new Date(),
         },
         create: {
           licenseKeyHash: this.hash(licenseKey),
-          rawPayload: raw, signature, status: payload.status, tier: payload.tier,
+          rawPayload: raw,
+          signature,
+          status: payload.status,
+          tier: payload.tier,
           issuedAt: new Date(payload.issuedAt),
           expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
         },
       });
 
       this.state = this.stateFromPayload(payload, false);
+      await this.systemState.updateValidatedAt().catch(() => undefined);
     } catch (err: any) {
-      this.logger.warn(`License-Server nicht erreichbar/ungültig: ${err.message} — prüfe Cache`);
+      this.logger.warn(
+        `License server unreachable/invalid: ${err.message} — checking cache`,
+      );
       this.state = await this.stateFromCache(licenseKey);
     }
     return this.state;
   }
 
-  // ─── Intern ────────────────────────────────────────────────────────────────
+  // ─── Internal ──────────────────────────────────────────────────────────────
 
   private async callLicenseApi(
     path: string,
@@ -169,7 +283,10 @@ export class LicenseService implements OnModuleInit {
   ): Promise<{ payload: any; raw: string; signature: string }> {
     const res = await fetch(`${this.apiUrl}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-License-Key': licenseKey },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-License-Key': licenseKey,
+      },
       body: JSON.stringify({
         licenseKey,
         panelInstanceId: process.env.PANEL_INSTANCE_ID,
@@ -178,7 +295,10 @@ export class LicenseService implements OnModuleInit {
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`License API ${path} → HTTP ${res.status}`);
-    const envelope = (await res.json()) as { payload: string; signature: string };
+    const envelope = (await res.json()) as {
+      payload: string;
+      signature: string;
+    };
     const payload = this.verifyAndParse(envelope.payload, envelope.signature);
     return { payload, raw: envelope.payload, signature: envelope.signature };
   }
@@ -190,7 +310,7 @@ export class LicenseService implements OnModuleInit {
       payloadBytes,
       {
         key: Buffer.concat([
-          // SPKI-Header für Ed25519 raw key (32 Bytes)
+          // SPKI header for Ed25519 raw key (32 bytes)
           Buffer.from('302a300506032b6570032100', 'hex'),
           Buffer.from(this.publicKey, 'base64'),
         ]),
@@ -213,11 +333,13 @@ export class LicenseService implements OnModuleInit {
     try {
       payload = this.verifyAndParse(cached.rawPayload, cached.signature);
     } catch {
-      this.logger.error('Cache-Signatur ungültig — Cache manipuliert?');
+      this.logger.error('Cache signature invalid — cache tampered?');
       return this.emptyState('unlicensed');
     }
 
-    const graceEnd = new Date(payload.issuedAt).getTime() + payload.gracePeriodDays * 86_400_000;
+    const graceEnd =
+      new Date(payload.issuedAt).getTime() +
+      payload.gracePeriodDays * 86_400_000;
     const remainingMs = graceEnd - Date.now();
     if (payload.status === 'active' && remainingMs > 0) {
       const state = this.stateFromPayload(payload, true);
@@ -227,7 +349,10 @@ export class LicenseService implements OnModuleInit {
     return this.emptyState('unlicensed');
   }
 
-  private stateFromPayload(payload: ValidationPayload, grace: boolean): LicenseState {
+  private stateFromPayload(
+    payload: ValidationPayload,
+    grace: boolean,
+  ): LicenseState {
     if (payload.status !== 'active') return this.emptyState('unlicensed');
     return {
       status: grace ? 'grace' : 'active',
@@ -245,7 +370,7 @@ export class LicenseService implements OnModuleInit {
       status,
       tier: null,
       limits: null,
-      // Unkonfiguriert (Dev/Eval): alles erlaubt; unlicensed: Gates greifen
+      // Unconfigured (dev/eval): everything allowed; unlicensed: gates apply.
       features: status === 'unconfigured' ? ['*'] : [],
       graceRemainingDays: null,
       expiresAt: null,

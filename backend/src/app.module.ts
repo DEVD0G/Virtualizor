@@ -17,6 +17,7 @@ import { NetworksModule } from './networks/networks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
+import { LockedGuard } from './license/locked.guard';
 import { HealthController } from './health.controller';
 import { SeedService } from './bootstrap/seed.service';
 
@@ -40,6 +41,9 @@ import { SeedService } from './bootstrap/seed.service';
   controllers: [HealthController],
   providers: [
     SeedService,
+    // LockedGuard MUST be first: it short-circuits with 503 during install phase,
+    // before rate limiting, auth, or permissions are evaluated.
+    { provide: APP_GUARD, useClass: LockedGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

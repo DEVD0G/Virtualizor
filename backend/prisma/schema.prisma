@@ -398,6 +398,27 @@ model LicenseActivation {
   @@map("license_activations")
 }
 
+// --- Install & Lock State ---
+
+enum InstallPhase {
+  locked      // fresh install, no license yet
+  activating  // first-boot setup in progress
+  active      // fully licensed
+}
+
+model SystemState {
+  id              String       @id @default("singleton")
+  phase           InstallPhase @default(locked)
+  installId       String       @unique  // uuid generated at install time
+  fingerprint     String       // hardware fingerprint (regenerated if HW changes)
+  licenseKey      String?      // stored after activation (plaintext — encrypted at rest via env secret)
+  activatedAt     DateTime?
+  lastValidatedAt DateTime?
+  updatedAt       DateTime     @updatedAt
+
+  @@map("system_state")
+}
+
 // ─── Audit ───────────────────────────────────────────────────────────────────
 
 model AuditLog {

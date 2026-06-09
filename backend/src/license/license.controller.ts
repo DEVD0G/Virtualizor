@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsString, MinLength } from 'class-validator';
+import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { LicenseService } from './license.service';
 
@@ -12,6 +13,17 @@ class ActivateDto {
 export class LicenseController {
   constructor(private readonly license: LicenseService) {}
 
+  /**
+   * Public endpoint — no auth required. Used by the first-boot activation UI
+   * before any user session exists. Returns the current install phase,
+   * installId, hardware fingerprint, and license state.
+   */
+  @Get('system-state')
+  @Public()
+  getSystemState() {
+    return this.license.getFullState();
+  }
+
   @Get('status')
   @RequirePermissions('license.read')
   status() {
@@ -19,7 +31,8 @@ export class LicenseController {
   }
 
   @Post('activate')
-  @RequirePermissions('license.manage')
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   activate(@Body() dto: ActivateDto) {
     return this.license.activate(dto.licenseKey);
   }

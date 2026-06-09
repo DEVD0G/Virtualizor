@@ -1,0 +1,27 @@
+{
+  "name": "vcp-license-server",
+  "version": "1.0.0",
+  "description": "VCP External License Server — reference implementation (separates System)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "keygen": "node --input-type=module <<'EOF'\nimport { generateKeyPairSync } from 'crypto';\nconst { publicKey, privateKey } = generateKeyPairSync('ed25519');\nconsole.log('PRIVATE KEY (base64, keep secret):');\nconsole.log(privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64'));\nconsole.log('PUBLIC KEY (base64, embed in panel):');\nconsole.log(publicKey.export({ type: 'spki', format: 'der' }).slice(12).toString('base64'));\nEOF"
+  },
+  "dependencies": {
+    "fastify": "^4.28.0",
+    "@fastify/rate-limit": "^9.1.0",
+    "@prisma/client": "^5.19.0",
+    "argon2": "^0.41.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "prisma": "^5.19.0",
+    "tsx": "^4.17.0",
+    "typescript": "^5.5.0"
+  }
+}
