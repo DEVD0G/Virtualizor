@@ -1,0 +1,20 @@
+[Unit]
+Description=VCP Node Agent
+After=network-online.target libvirtd.service
+Wants=network-online.target
+Requires=libvirtd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/vcp-agent --config /etc/vcp/agent.yaml
+Restart=always
+RestartSec=5
+# Root erforderlich für libvirt + Storage; Härtung soweit kompatibel:
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target
