@@ -1,7 +1,7 @@
 import {
   Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query,
 } from '@nestjs/common';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
@@ -24,6 +24,15 @@ class ResizeVmDto {
 
 class ResizeDiskDto {
   @IsInt() @Min(1) @Max(16384) newSizeGb: number;
+}
+
+class CloneVmDto {
+  @IsString() newName: string;
+}
+
+class UpdateVmMetaDto {
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
 }
 
 class CreateFirewallRuleDto {
@@ -66,6 +75,18 @@ export class VmsController {
   @RequirePermissions('vm.delete')
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.vms.remove(user, id);
+  }
+
+  @Post(':id/clone')
+  @RequirePermissions('vm.create')
+  clone(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CloneVmDto) {
+    return this.vms.clone(user, id, dto.newName);
+  }
+
+  @Patch(':id/meta')
+  @RequirePermissions('vm.manage')
+  updateMeta(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateVmMetaDto) {
+    return this.vms.updateMeta(user, id, dto);
   }
 
   @Post(':id/start')

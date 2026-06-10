@@ -17,6 +17,8 @@ export default function VmDetailPage() {
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
   const [showResize, setShowResize] = useState(false);
   const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
+  const [showClone, setShowClone] = useState(false);
+  const [cloneName, setCloneName] = useState('');
   const [scheduleForm, setScheduleForm] = useState({ intervalHours: '24', targetDir: '' });
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
@@ -83,6 +85,34 @@ export default function VmDetailPage() {
       {consoleWsUrl && (
         <VncConsole wsUrl={consoleWsUrl} onClose={() => setConsoleWsUrl(null)} />
       )}
+      {showClone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-semibold">VM klonen</h3>
+            <label className="label">Name der neuen VM</label>
+            <input
+              className="input mb-4"
+              value={cloneName}
+              onChange={(e) => setCloneName(e.target.value.replace(/[^a-z0-9-]/g, ''))}
+              pattern="[a-z0-9][-a-z0-9]{2,62}"
+              placeholder="neue-vm-name"
+            />
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!/^[a-z0-9][-a-z0-9]{2,62}$/.test(cloneName) || action.isPending}
+                onClick={() => {
+                  action.mutate({ path: `/vms/${vm.id}/clone`, body: { newName: cloneName } });
+                  setShowClone(false);
+                }}
+              >
+                Klonen starten
+              </button>
+              <button className="btn-secondary" onClick={() => setShowClone(false)}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -101,6 +131,14 @@ export default function VmDetailPage() {
               <button className="btn-secondary" onClick={() => action.mutate({ path: `/vms/${vm.id}/restart` })}>Restart</button>
               <button className="btn-secondary" onClick={() => action.mutate({ path: `/vms/${vm.id}/stop` })}>Stop</button>
             </>
+          )}
+          {can('vm.create') && vm.state === 'stopped' && (
+            <button className="btn-secondary" onClick={() => {
+              setCloneName(`${vm.name}-clone`);
+              setShowClone(true);
+            }}>
+              Klonen
+            </button>
           )}
           {can('vm.delete') && (
             <button

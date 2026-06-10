@@ -145,6 +145,57 @@ export class VmsService implements TaskHandler, OnModuleInit {
     return { taskId: task.id };
   }
 
+  async updateMeta(user: AuthenticatedUser, id: string, dto: { description?: string; tags?: string[] }) {
+    const vm = await this.get(user, id);
+    return this.prisma.vm.update({
+      where: { id: vm.id },
+      data: { ...(dto.description !== undefined ? { description: dto.description } : {}),
+               ...(dto.tags !== undefined ? { tags: dto.tags } : {}) },
+    });
+  }
+
+  async clone(user: AuthenticatedUser, id: string, newName: string) {
+    await this.license.assertWriteAllowed();
+    const source = await this.get(user, id);
+    if (source.state !== 'stopped') throw new BadRequestException('Quelle muss gestoppt sein');
+
+    const exists = await this.prisma.vm.findUnique({ where: { name: newName } });
+    if (exists) throw new ConflictException('VM-Name bereits vergeben');
+
+    const clone = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.vm.create({
+        data: {
+          name: newName,
+          vcpus: source.vcpus,
+          memoryMb: source.memoryMb,
+          nodeId: source.nodeId,
+          ownerId: user.id,
+          templateId: source.templateId,
+          cloudInit: source.cloudInit as any,
+          tags: (source as any).tags ?? [],
+          description: `Klon von ${source.name}`,
+        },
+      });
+      // Disks mit gleichen Größen + Pool anlegen (Agent klont die Daten)
+      for (const [i, disk] of (source as any).disks.entries()) {
+        await tx.volume.create({
+          data: {
+            name: `${newName}-disk${i}`,
+            sizeGb: disk.sizeGb,
+            vmId: created.id,
+            storagePoolId: disk.storagePoolId,
+            bootOrder: disk.bootOrder,
+          },
+        });
+      }
+      return created;
+    });
+
+    const task = await this.tasks.enqueue('vm.clone', 'vm', clone.id,
+      { sourceVmId: source.id, cloneVmId: clone.id }, user.id);
+    return { vm: clone, taskId: task.id };
+  }
+
   async remove(user: AuthenticatedUser, id: string) {
     await this.license.assertWriteAllowed();
     const vm = await this.get(user, id);
@@ -330,6 +381,15 @@ export class VmsService implements TaskHandler, OnModuleInit {
         await this.agent.restartVm(node, vm.name);
         await this.setState(vm.id, vm.name, 'running');
         break;
+      case 'vm.clone': {
+        const sourceVm = await this.prisma.vm.findUniqueOrThrow({
+          where: { id: payload.sourceVmId },
+          include: { node: true },
+        });
+        await this.agent.cloneVm(node, sourceVm.name, vm.name);
+        await this.setState(vm.id, vm.name, 'stopped');
+        break;
+      }
       case 'vm.delete':
         await this.agent.deleteVm(node, vm.name);
         await this.prisma.vm.delete({ where: { id: vm.id } });

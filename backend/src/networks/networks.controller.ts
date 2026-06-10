@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
-import { IsArray, IsIn, IsInt, IsIP, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsIP, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -8,6 +8,15 @@ class CreateNetworkDto {
   @IsIn(['bridged', 'nat']) mode: 'bridged' | 'nat';
   @Matches(/^[a-zA-Z0-9_.-]{1,15}$/) bridge: string;
   @IsOptional() @IsInt() @Min(1) @Max(4094) vlanTag?: number;
+}
+
+class CreatePortForwardDto {
+  @IsIn(['tcp', 'udp']) protocol: 'tcp' | 'udp';
+  @IsInt() @Min(1) @Max(65535) externalPort: number;
+  @IsIP(4) internalIp: string;
+  @IsInt() @Min(1) @Max(65535) internalPort: number;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
 }
 
 class CreateIpPoolDto {
@@ -107,5 +116,43 @@ export class NetworksController {
       where: { nicId: { not: null } },
       include: { nic: { select: { vm: { select: { id: true, name: true } } } } },
     });
+  }
+
+  // ─── Port Forwarding ─────────────────────────────────────────────────────────
+
+  @Get('networks/:id/port-forwards')
+  @RequirePermissions('network.read')
+  listPortForwards(@Param('id') id: string) {
+    return this.prisma.portForwardRule.findMany({
+      where: { networkId: id },
+      orderBy: [{ protocol: 'asc' }, { externalPort: 'asc' }],
+    });
+  }
+
+  @Post('networks/:id/port-forwards')
+  @RequirePermissions('network.manage')
+  async createPortForward(@Param('id') id: string, @Body() dto: CreatePortForwardDto) {
+    const network = await this.prisma.network.findUnique({ where: { id } });
+    if (!network) throw new NotFoundException('Netzwerk nicht gefunden');
+    return this.prisma.portForwardRule.create({
+      data: {
+        networkId: id,
+        protocol: dto.protocol,
+        externalPort: dto.externalPort,
+        internalIp: dto.internalIp,
+        internalPort: dto.internalPort,
+        description: dto.description,
+        enabled: dto.enabled ?? true,
+      },
+    });
+  }
+
+  @Delete('networks/:networkId/port-forwards/:id')
+  @HttpCode(204)
+  @RequirePermissions('network.manage')
+  async deletePortForward(@Param('networkId') networkId: string, @Param('id') id: string) {
+    const rule = await this.prisma.portForwardRule.findFirst({ where: { id, networkId } });
+    if (!rule) throw new NotFoundException('Regel nicht gefunden');
+    await this.prisma.portForwardRule.delete({ where: { id } });
   }
 }

@@ -40,4 +40,8 @@ export class EventsGateway implements OnGatewayConnection {
   emitTaskUpdate(task: { id: string; state: string; progress: number; error?: string | null }) {
     this.server?.to('tasks').emit('task.update', task);
   }
+
+  emit(event: string, data: unknown) {
+    this.server?.emit(event, data);
+  }
 }

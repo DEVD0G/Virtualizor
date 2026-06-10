@@ -23,6 +23,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   vms           Vm[]
+  containers    Container[]
   apiKeys       ApiKey[]
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]
@@ -116,6 +117,7 @@ model Node {
   updatedAt       DateTime  @updatedAt
 
   vms          Vm[]
+  containers   Container[]
   storagePools StoragePool[]
   activations  LicenseActivation[]
   metricSamples NodeMetricSample[]
@@ -173,6 +175,8 @@ model Vm {
   template  Template? @relation(fields: [templateId], references: [id])
   cloudInit Json?
   errorMsg  String?
+  tags      String[]
+  description String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -186,6 +190,40 @@ model Vm {
   @@index([ownerId])
   @@index([nodeId])
   @@map("vms")
+}
+
+// ─── LXC Container ───────────────────────────────────────────────────────────
+
+enum ContainerState {
+  provisioning
+  stopped
+  running
+  error
+  deleting
+}
+
+model Container {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  state       ContainerState @default(provisioning)
+  vcpus       Int
+  memoryMb    Int
+  diskGb      Int
+  nodeId      String
+  node        Node           @relation(fields: [nodeId], references: [id])
+  ownerId     String
+  owner       User           @relation(fields: [ownerId], references: [id])
+  osTemplate  String         // e.g. "ubuntu-22.04"
+  ipAddress   String?
+  tags        String[]
+  description String?
+  errorMsg    String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([ownerId])
+  @@index([nodeId])
+  @@map("containers")
 }
 
 model VmSnapshot {
@@ -277,8 +315,9 @@ model Network {
   bridge   String // Host-Bridge-Name (z.B. vmbr0)
   vlanTag  Int?
   cidr     String? // für NAT-Netze
-  ipPools  IpPool[]
-  nics     Nic[]
+  ipPools          IpPool[]
+  nics             Nic[]
+  portForwardRules PortForwardRule[]
 
   @@map("networks")
 }
@@ -293,6 +332,27 @@ model IpPool {
   addresses IpAddress[]
 
   @@map("ip_pools")
+}
+
+enum PortForwardProtocol {
+  tcp
+  udp
+}
+
+model PortForwardRule {
+  id          String              @id @default(uuid())
+  networkId   String
+  network     Network             @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  description String?
+  protocol    PortForwardProtocol @default(tcp)
+  externalPort Int
+  internalIp  String
+  internalPort Int
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+
+  @@unique([networkId, protocol, externalPort])
+  @@map("port_forward_rules")
 }
 
 model IpAddress {

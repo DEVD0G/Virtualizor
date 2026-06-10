@@ -12,6 +12,7 @@ const nav = [
   { to: '/', label: 'Dashboard', perm: null },
   { to: '/ai', label: '✦ KI-Assistent', perm: 'vm.read' },
   { to: '/vms', label: 'Virtual Machines', perm: 'vm.read' },
+  { to: '/containers', label: 'LXC Container', perm: 'vm.read' },
   { to: '/nodes', label: 'Nodes', perm: 'node.read' },
   { to: '/networks', label: 'Netzwerke', perm: 'network.read' },
   { to: '/storage', label: 'Storage', perm: 'storage.read' },

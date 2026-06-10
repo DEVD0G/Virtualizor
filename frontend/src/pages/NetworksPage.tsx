@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../api/client';
-import { Network } from '../api/types';
+import { Network, PortForwardRule } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 
 interface CreateNetworkForm {
@@ -24,10 +24,19 @@ export default function NetworksPage() {
   const [netForm, setNetForm] = useState<CreateNetworkForm>({ name: '', mode: 'bridged', bridge: 'vmbr0', vlanTag: '' });
   const [poolForms, setPoolForms] = useState<Record<string, CreatePoolForm>>({});
   const [showPoolFor, setShowPoolFor] = useState<string | null>(null);
+  const [showPfFor, setShowPfFor] = useState<string | null>(null);
+  const [pfForm, setPfForm] = useState({ protocol: 'tcp' as 'tcp' | 'udp', externalPort: '', internalIp: '', internalPort: '', description: '' });
+  const [pfError, setPfError] = useState('');
 
   const { data: networks = [], isLoading } = useQuery({
     queryKey: ['networks'],
     queryFn: () => api<Network[]>('/networks'),
+  });
+
+  const portForwards = useQuery({
+    queryKey: ['port-forwards', showPfFor],
+    queryFn: () => api<PortForwardRule[]>(`/networks/${showPfFor}/port-forwards`),
+    enabled: !!showPfFor,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['networks'] });
@@ -68,6 +77,32 @@ export default function NetworksPage() {
     mutationFn: ({ networkId, poolId }: { networkId: string; poolId: string }) =>
       api(`/networks/${networkId}/ip-pools/${poolId}`, { method: 'DELETE' }),
     onSuccess: invalidate,
+  });
+
+  const createPf = useMutation({
+    mutationFn: ({ networkId, data }: { networkId: string; data: typeof pfForm }) =>
+      api(`/networks/${networkId}/port-forwards`, {
+        method: 'POST',
+        body: {
+          protocol: data.protocol,
+          externalPort: parseInt(data.externalPort),
+          internalIp: data.internalIp,
+          internalPort: parseInt(data.internalPort),
+          ...(data.description ? { description: data.description } : {}),
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['port-forwards'] });
+      setPfForm({ protocol: 'tcp', externalPort: '', internalIp: '', internalPort: '', description: '' });
+      setPfError('');
+    },
+    onError: (e: any) => setPfError(e?.message ?? 'Fehler'),
+  });
+
+  const deletePf = useMutation({
+    mutationFn: ({ networkId, id }: { networkId: string; id: string }) =>
+      api(`/networks/${networkId}/port-forwards/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['port-forwards'] }),
   });
 
   if (isLoading) return <div className="text-slate-400">Lade…</div>;
@@ -144,6 +179,85 @@ export default function NetworksPage() {
               </button>
             )}
           </div>
+
+          {/* Port Forwarding Section */}
+          {net.mode === 'nat' && can('network.read') && (
+            <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Port Forwarding</span>
+                {can('network.manage') && (
+                  <button className="btn-secondary text-xs"
+                    onClick={() => {
+                      const next = showPfFor === net.id ? null : net.id;
+                      setShowPfFor(next);
+                      setPfError('');
+                    }}>
+                    {showPfFor === net.id ? 'Schließen' : '+ Regel'}
+                  </button>
+                )}
+              </div>
+              {showPfFor === net.id && can('network.manage') && (
+                <div className="mb-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div className="grid gap-2 sm:grid-cols-5">
+                    <select className="input" value={pfForm.protocol}
+                      onChange={(e) => setPfForm({ ...pfForm, protocol: e.target.value as 'tcp' | 'udp' })}>
+                      <option value="tcp">TCP</option>
+                      <option value="udp">UDP</option>
+                    </select>
+                    <input className="input" type="number" min="1" max="65535" placeholder="Ext. Port"
+                      value={pfForm.externalPort}
+                      onChange={(e) => setPfForm({ ...pfForm, externalPort: e.target.value })} />
+                    <input className="input" placeholder="Interne IP"
+                      value={pfForm.internalIp}
+                      onChange={(e) => setPfForm({ ...pfForm, internalIp: e.target.value })} />
+                    <input className="input" type="number" min="1" max="65535" placeholder="Int. Port"
+                      value={pfForm.internalPort}
+                      onChange={(e) => setPfForm({ ...pfForm, internalPort: e.target.value })} />
+                    <input className="input" placeholder="Beschreibung (opt.)"
+                      value={pfForm.description}
+                      onChange={(e) => setPfForm({ ...pfForm, description: e.target.value })} />
+                  </div>
+                  {pfError && <p className="mt-1 text-xs text-red-500">{pfError}</p>}
+                  <button
+                    className="btn-primary mt-2"
+                    disabled={createPf.isPending || !pfForm.externalPort || !pfForm.internalIp || !pfForm.internalPort}
+                    onClick={() => createPf.mutate({ networkId: net.id, data: pfForm })}
+                  >
+                    Regel hinzufügen
+                  </button>
+                </div>
+              )}
+              {portForwards.data?.length === 0 && showPfFor === net.id && (
+                <p className="text-sm text-slate-400">Keine Port-Forward-Regeln</p>
+              )}
+              {portForwards.data && portForwards.data.length > 0 && (
+                <table className="table-base text-xs">
+                  <thead>
+                    <tr><th>Protokoll</th><th>Ext. Port</th><th>Interne IP</th><th>Int. Port</th><th>Beschreibung</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {portForwards.data.map((r) => (
+                      <tr key={r.id}>
+                        <td className="uppercase font-mono">{r.protocol}</td>
+                        <td>{r.externalPort}</td>
+                        <td className="font-mono">{r.internalIp}</td>
+                        <td>{r.internalPort}</td>
+                        <td>{r.description ?? '—'}</td>
+                        <td className="text-right">
+                          {can('network.manage') && (
+                            <button className="btn-danger text-xs"
+                              onClick={() => deletePf.mutate({ networkId: net.id, id: r.id })}>
+                              Löschen
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
           <div>
             <div className="mb-2 flex items-center justify-between">

@@ -297,3 +297,32 @@ export interface BackupSchedule {
   nextRunAt: string | null;
   createdAt: string;
 }
+
+export interface Container {
+  id: string;
+  name: string;
+  state: 'provisioning' | 'stopped' | 'running' | 'error' | 'deleting';
+  vcpus: number;
+  memoryMb: number;
+  diskGb: number;
+  osTemplate: string;
+  ipAddress: string | null;
+  tags: string[];
+  description: string | null;
+  errorMsg: string | null;
+  createdAt: string;
+  node: { id: string; name: string };
+  owner: { id: string; email: string; name: string };
+}
+
+export interface PortForwardRule {
+  id: string;
+  networkId: string;
+  protocol: 'tcp' | 'udp';
+  externalPort: number;
+  internalIp: string;
+  internalPort: number;
+  description: string | null;
+  enabled: boolean;
+  createdAt: string;
+}

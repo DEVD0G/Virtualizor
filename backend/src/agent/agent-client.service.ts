@@ -46,6 +46,26 @@ export class AgentClientService {
     return this.call(node, 'DELETE', `/v1/vms/${encodeURIComponent(name)}`);
   }
 
+  cloneVm(node: Node, sourceName: string, targetName: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(sourceName)}/clone`, { targetName });
+  }
+
+  createContainer(node: Node, spec: { name: string; vcpus: number; memoryMb: number; diskGb: number; osTemplate: string; ipAddress?: string }) {
+    return this.call(node, 'POST', '/v1/containers', spec);
+  }
+
+  startContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/start`);
+  }
+
+  stopContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/stop`);
+  }
+
+  deleteContainer(node: Node, name: string) {
+    return this.call(node, 'DELETE', `/v1/containers/${encodeURIComponent(name)}`);
+  }
+
   snapshotVm(node: Node, name: string, snapshotName: string) {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/snapshot`, { name: snapshotName });
   }
