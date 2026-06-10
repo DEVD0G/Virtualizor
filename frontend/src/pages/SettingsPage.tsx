@@ -15,8 +15,52 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Konto-Einstellungen</h1>
+      <ProfileSection />
       <PasswordSection />
       <TotpSection totpEnabled={user?.totpEnabled ?? false} />
+    </div>
+  );
+}
+
+function ProfileSection() {
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.name ?? '');
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const save = useMutation({
+    mutationFn: () => api('/auth/me', { method: 'PATCH', body: { name } }),
+    onSuccess: () => {
+      setMsg({ text: 'Profil gespeichert.', ok: true });
+      setTimeout(() => setMsg(null), 4000);
+    },
+    onError: (e: any) => setMsg({ text: e.message ?? 'Fehler', ok: false }),
+  });
+
+  return (
+    <div className="card space-y-4">
+      <h2 className="font-semibold">Profil</h2>
+      {msg && (
+        <div className={`rounded-md border px-3 py-2 text-sm ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
+          {msg.text}
+        </div>
+      )}
+      <div className="space-y-3 max-w-xs">
+        <div>
+          <label className="label">E-Mail</label>
+          <input className="input opacity-60 cursor-not-allowed" value={user?.email ?? ''} disabled />
+        </div>
+        <div>
+          <label className="label">Anzeigename</label>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <button
+          className="btn-primary"
+          disabled={save.isPending || name === user?.name || !name.trim()}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? 'Speichere…' : 'Speichern'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, Length, MinLength } from 'class-validator';
 import { AuthService, AuthenticatedUser } from './auth.service';
@@ -26,6 +26,10 @@ class TotpCodeDto {
 class ChangePasswordDto {
   @IsString() currentPassword: string;
   @IsString() @MinLength(10) newPassword: string;
+}
+
+class UpdateProfileDto {
+  @IsString() @MinLength(1) name: string;
 }
 
 @Controller('auth')
@@ -84,5 +88,10 @@ export class AuthController {
   @Post('change-password')
   changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Patch('me')
+  updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(user.id, dto.name);
   }
 }

@@ -14,6 +14,7 @@ export default function VmListPage() {
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
   const [nodeFilter, setNodeFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
 
   const { data: vms, isLoading } = useQuery({ queryKey: ['vms'], queryFn: () => api<Vm[]>('/vms') });
   const { data: nodes } = useQuery({
@@ -34,6 +35,7 @@ export default function VmListPage() {
       if (search && !vm.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (stateFilter && vm.state !== stateFilter) return false;
       if (nodeFilter && vm.node.id !== nodeFilter) return false;
+      if (tagFilter && !(vm.tags ?? []).some((t) => t.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
       return true;
     });
   }, [vms, search, stateFilter, nodeFilter]);
@@ -78,16 +80,23 @@ export default function VmListPage() {
             ))}
           </select>
         )}
-        {(search || stateFilter || nodeFilter) && (
+        <input
+          type="text"
+          placeholder="Tag filtern…"
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="input w-36"
+        />
+        {(search || stateFilter || nodeFilter || tagFilter) && (
           <button
             className="btn-secondary"
-            onClick={() => { setSearch(''); setStateFilter(''); setNodeFilter(''); }}
+            onClick={() => { setSearch(''); setStateFilter(''); setNodeFilter(''); setTagFilter(''); }}
           >
             Filter zurücksetzen
           </button>
         )}
         <span className="ml-auto text-sm text-slate-500 self-center">
-          {filtered.length} von {vms?.length ?? 0} VMs
+          {filtered.length}{(search || stateFilter || nodeFilter || tagFilter) ? ` von ${vms?.length ?? 0}` : ''} VMs
         </span>
       </div>
 

@@ -119,6 +119,14 @@ export class AuthService {
     return { ok: true };
   }
 
+  async updateProfile(userId: string, name: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+      select: { id: true, email: true, name: true },
+    });
+  }
+
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!(await argon2.verify(user.passwordHash, currentPassword))) {
