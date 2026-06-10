@@ -174,11 +174,12 @@ model Vm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  disks         Volume[]
-  nics          Nic[]
-  snapshots     VmSnapshot[]
-  backups       Backup[]
-  firewallRules FirewallRule[]
+  disks            Volume[]
+  nics             Nic[]
+  snapshots        VmSnapshot[]
+  backups          Backup[]
+  firewallRules    FirewallRule[]
+  backupSchedules  BackupSchedule[]
 
   @@index([ownerId])
   @@index([nodeId])
@@ -360,6 +361,20 @@ model Backup {
   createdAt DateTime    @default(now())
 
   @@map("backups")
+}
+
+model BackupSchedule {
+  id            String    @id @default(uuid())
+  vmId          String
+  vm            Vm        @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  intervalHours Int
+  targetDir     String?
+  enabled       Boolean   @default(true)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("backup_schedules")
 }
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────

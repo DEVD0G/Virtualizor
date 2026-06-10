@@ -191,3 +191,14 @@ export interface FirewallRule {
   cidr: string;
   priority: number;
 }
+
+export interface BackupSchedule {
+  id: string;
+  vmId: string;
+  intervalHours: number;
+  targetDir: string | null;
+  enabled: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  createdAt: string;
+}

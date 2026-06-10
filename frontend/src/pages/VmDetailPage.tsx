@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, FirewallRule, Snapshot, Vm } from '../api/types';
+import { Backup, BackupSchedule, FirewallRule, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import VncConsole from '../components/VncConsole';
@@ -16,6 +16,7 @@ export default function VmDetailPage() {
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
   const [showResize, setShowResize] = useState(false);
   const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
+  const [scheduleForm, setScheduleForm] = useState({ intervalHours: '24', targetDir: '' });
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
     action: 'accept' as 'accept' | 'drop',
@@ -46,12 +47,18 @@ export default function VmDetailPage() {
     queryFn: () => api<FirewallRule[]>(`/vms/${id}/firewall`),
     enabled: can('vm.firewall'),
   });
+  const { data: schedules } = useQuery({
+    queryKey: ['vms', id, 'backup-schedules'],
+    queryFn: () => api<BackupSchedule[]>(`/vms/${id}/backup-schedules`),
+    enabled: can('backup.read'),
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['vms'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'snapshots'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'backups'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'firewall'] });
+    queryClient.invalidateQueries({ queryKey: ['vms', id, 'backup-schedules'] });
   };
 
   const action = useMutation({
@@ -239,6 +246,76 @@ export default function VmDetailPage() {
               {!backups?.length && <tr><td colSpan={5} className="text-center text-slate-400">Keine Backups</td></tr>}
             </tbody>
           </table>
+
+          {/* Backup Schedules */}
+          <div className="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <h3 className="mb-3 text-sm font-semibold">Geplante Backups</h3>
+            {can('backup.manage') && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <input
+                  className="input w-28"
+                  type="number"
+                  min="1"
+                  max="8760"
+                  placeholder="Intervall (h)"
+                  value={scheduleForm.intervalHours}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, intervalHours: e.target.value })}
+                />
+                <input
+                  className="input w-52"
+                  placeholder="Zielverzeichnis (optional)"
+                  value={scheduleForm.targetDir}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, targetDir: e.target.value })}
+                />
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => {
+                    const h = parseInt(scheduleForm.intervalHours);
+                    if (!h || h < 1) return;
+                    action.mutate({
+                      path: `/vms/${vm.id}/backup-schedules`,
+                      body: { intervalHours: h, ...(scheduleForm.targetDir ? { targetDir: scheduleForm.targetDir } : {}) },
+                    });
+                  }}
+                >
+                  Zeitplan hinzufügen
+                </button>
+              </div>
+            )}
+            {schedules?.length ? (
+              <table className="table-base text-sm">
+                <thead><tr><th>Intervall</th><th>Letzter Lauf</th><th>Nächster Lauf</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {schedules.map((s) => (
+                    <tr key={s.id}>
+                      <td>alle {s.intervalHours} h</td>
+                      <td className="text-xs">{s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : '—'}</td>
+                      <td className="text-xs">{s.nextRunAt ? new Date(s.nextRunAt).toLocaleString() : '—'}</td>
+                      <td>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                          {s.enabled ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                      </td>
+                      {can('backup.manage') && (
+                        <td className="space-x-1 text-right">
+                          <button className="btn-secondary text-xs"
+                            onClick={() => action.mutate({ path: `/vms/${vm.id}/backup-schedules/${s.id}`, method: 'PATCH', body: { enabled: !s.enabled } })}>
+                            {s.enabled ? 'Deaktivieren' : 'Aktivieren'}
+                          </button>
+                          <button className="btn-danger text-xs"
+                            onClick={() => action.mutate({ path: `/vms/${vm.id}/backup-schedules/${s.id}`, method: 'DELETE' })}>
+                            Löschen
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-slate-400">Keine Zeitpläne konfiguriert</p>
+            )}
+          </div>
         </div>
       )}
 

@@ -320,6 +320,52 @@ func (m *Manager) ResizeDomain(name string, vcpus, memMb int) error {
 	return err
 }
 
+// NicInfo enthält MAC und Bridge eines VM-Netzwerkinterfaces.
+type NicInfo struct {
+	Mac    string
+	Bridge string
+}
+
+// GetNics liest die Netzwerkinterfaces einer Domain aus der XML-Beschreibung.
+func (m *Manager) GetNics(name string) ([]NicInfo, error) {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, 0)
+	if err != nil {
+		return nil, fmt.Errorf("DomainGetXMLDesc: %w", err)
+	}
+	type macXML struct {
+		Address string `xml:"address,attr"`
+	}
+	type sourceXML struct {
+		Bridge string `xml:"bridge,attr"`
+	}
+	type ifaceXML struct {
+		Type   string    `xml:"type,attr"`
+		Mac    macXML    `xml:"mac"`
+		Source sourceXML `xml:"source"`
+	}
+	type devicesXML struct {
+		Ifaces []ifaceXML `xml:"interface"`
+	}
+	type domainDoc struct {
+		Devices devicesXML `xml:"devices"`
+	}
+	var doc domainDoc
+	if err := xml.Unmarshal([]byte(xmlStr), &doc); err != nil {
+		return nil, err
+	}
+	var nics []NicInfo
+	for _, i := range doc.Devices.Ifaces {
+		if i.Type == "bridge" && i.Mac.Address != "" {
+			nics = append(nics, NicInfo{Mac: i.Mac.Address, Bridge: i.Source.Bridge})
+		}
+	}
+	return nics, nil
+}
+
 // VncPort gibt den vom QEMU zugewiesenen VNC-TCP-Port der laufenden Domain zurück.
 func (m *Manager) VncPort(name string) (int, error) {
 	dom, err := m.l.DomainLookupByName(name)

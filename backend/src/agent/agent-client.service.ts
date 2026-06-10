@@ -59,6 +59,10 @@ export class AgentClientService {
       `/v1/vms/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshotName)}`);
   }
 
+  applyFirewall(node: Node, vmName: string, rules: object[]) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/firewall/apply`, rules);
+  }
+
   resizeVm(node: Node, name: string, vcpus: number, memoryMb: number) {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/resize`, { vcpus, memoryMb });
   }

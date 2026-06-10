@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/devd0g/virtualizor/agent/internal/config"
+	"github.com/devd0g/virtualizor/agent/internal/firewall"
 	"github.com/devd0g/virtualizor/agent/internal/metrics"
 	"github.com/devd0g/virtualizor/agent/internal/storage"
 	"github.com/devd0g/virtualizor/agent/internal/virt"
@@ -107,6 +108,7 @@ func (s *Server) ListenAndServe() error {
 	}))
 	mux.HandleFunc("DELETE /v1/vms/{name}/snapshots/{snap}", s.handleDeleteSnapshot)
 	mux.HandleFunc("POST /v1/vms/{name}/backup", s.handleBackupDirect)
+	mux.HandleFunc("POST /v1/vms/{name}/firewall/apply", s.handleApplyFirewall)
 	mux.HandleFunc("POST /v1/vms/{name}/resize", s.handleResizeVm)
 	mux.HandleFunc("POST /v1/vms/{name}/disks/resize", s.handleResizeDisk)
 	mux.HandleFunc("POST /v1/console-token", s.handleConsoleToken)
@@ -252,6 +254,7 @@ func (s *Server) handleDeleteVm(w http.ResponseWriter, r *http.Request) {
 		_ = s.store.DeleteVolume(fmt.Sprintf("%s-disk%d", name, i))
 	}
 	_ = s.store.DeleteSeed(name)
+	_ = firewall.Flush(name) // nftables-Regeln bereinigen
 	writeJSON(w, 200, map[string]string{"status": "deleted"})
 }
 
@@ -308,6 +311,36 @@ func (s *Server) handleBackupDirect(w http.ResponseWriter, r *http.Request) {
 		"files":      files,
 		"totalBytes": totalBytes,
 	})
+}
+
+// handleApplyFirewall übersetzt gespeicherte Firewall-Regeln in nftables-Bridge-Regeln.
+func (s *Server) handleApplyFirewall(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var rules []firewall.Rule
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&rules); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	nics, err := s.virt.GetNics(name)
+	if err != nil {
+		writeErr(w, 404, err)
+		return
+	}
+	if len(nics) == 0 {
+		writeErr(w, 409, fmt.Errorf("keine Netzwerkinterfaces gefunden"))
+		return
+	}
+	// Regeln für jedes NIC der VM anwenden (typischerweise eins).
+	for _, nic := range nics {
+		if err := firewall.Apply(name+"-"+nic.Mac[len(nic.Mac)-5:], nic.Mac, rules); err != nil {
+			slog.Warn("nftables apply", "vm", name, "mac", nic.Mac, "err", err)
+		}
+	}
+	writeJSON(w, 200, map[string]string{"status": "applied"})
 }
 
 // handleResizeVm ändert vCPU- und RAM-Konfiguration einer gestoppten VM.

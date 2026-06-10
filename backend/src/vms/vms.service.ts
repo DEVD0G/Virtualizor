@@ -1,6 +1,6 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
-  NotFoundException, OnModuleInit,
+  Logger, NotFoundException, OnModuleInit,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -27,6 +27,7 @@ const vmInclude = {
 
 @Injectable()
 export class VmsService implements TaskHandler, OnModuleInit {
+  private readonly logger = new Logger(VmsService.name);
   private readonly redis: Redis;
 
   constructor(
@@ -224,10 +225,10 @@ export class VmsService implements TaskHandler, OnModuleInit {
     cidr?: string;
     priority?: number;
   }) {
-    await this.get(user, vmId);
-    return this.prisma.firewallRule.create({
+    const vm = await this.get(user, vmId);
+    const rule = await this.prisma.firewallRule.create({
       data: {
-        vmId,
+        vmId: vm.id,
         direction: dto.direction,
         action: dto.action,
         protocol: dto.protocol,
@@ -237,11 +238,26 @@ export class VmsService implements TaskHandler, OnModuleInit {
         priority: dto.priority ?? 100,
       },
     });
+    await this.applyFirewallRules(vm.id).catch((e) =>
+      this.logger.warn(`Firewall-Apply nach Erstellen fehlgeschlagen: ${e.message}`));
+    return rule;
   }
 
   async deleteFirewallRule(user: AuthenticatedUser, vmId: string, ruleId: string) {
-    await this.get(user, vmId);
+    const vm = await this.get(user, vmId);
     await this.prisma.firewallRule.deleteMany({ where: { id: ruleId, vmId } });
+    await this.applyFirewallRules(vm.id).catch((e) =>
+      this.logger.warn(`Firewall-Apply nach Löschen fehlgeschlagen: ${e.message}`));
+  }
+
+  private async applyFirewallRules(vmId: string) {
+    const vm = await this.prisma.vm.findUnique({
+      where: { id: vmId },
+      include: { nics: true, firewallRules: { orderBy: { priority: 'asc' } } },
+    });
+    if (!vm || vm.state !== 'running') return;
+    const node = await this.prisma.node.findUniqueOrThrow({ where: { id: vm.nodeId } });
+    await this.agent.applyFirewall(node, vm.name, vm.firewallRules as object[]);
   }
 
   async consoleToken(user: AuthenticatedUser, vmId: string) {
