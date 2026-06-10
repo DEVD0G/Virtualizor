@@ -37,6 +37,7 @@ model Role {
   isSystem    Boolean          @default(false)
   users       User[]
   permissions RolePermission[]
+  quota       ResourceQuota?
 
   @@map("roles")
 }
@@ -118,6 +119,7 @@ model Node {
   storagePools StoragePool[]
   activations  LicenseActivation[]
   metricSamples NodeMetricSample[]
+  alertRules   AlertRule[]
 
   @@map("nodes")
 }
@@ -450,6 +452,77 @@ model SystemState {
   updatedAt       DateTime     @updatedAt
 
   @@map("system_state")
+}
+
+// ─── Quotas ──────────────────────────────────────────────────────────────────
+
+model ResourceQuota {
+  id           String  @id @default(uuid())
+  roleId       String  @unique
+  role         Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  maxVms       Int?
+  maxVcpus     Int?
+  maxMemoryMb  Int?
+  maxStorageGb Int?
+
+  @@map("resource_quotas")
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+
+model Webhook {
+  id        String            @id @default(uuid())
+  name      String
+  url       String
+  secret    String
+  events    String[]
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  deliveries  WebhookDelivery[]
+  alertRules  AlertRule[]
+
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id         String   @id @default(uuid())
+  webhookId  String
+  webhook    Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event      String
+  payload    Json
+  statusCode Int?
+  success    Boolean  @default(false)
+  error      String?
+  deliveredAt DateTime @default(now())
+
+  @@index([webhookId, deliveredAt])
+  @@map("webhook_deliveries")
+}
+
+// ─── Alert Rules ──────────────────────────────────────────────────────────────
+
+enum AlertMetric {
+  cpu_percent
+  mem_used_mb
+  mem_percent
+}
+
+model AlertRule {
+  id             String      @id @default(uuid())
+  name           String
+  nodeId         String?
+  node           Node?       @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  metric         AlertMetric
+  threshold      Float
+  durationMinutes Int        @default(5)
+  cooldownMinutes Int        @default(30)
+  webhookId      String?
+  webhook        Webhook?    @relation(fields: [webhookId], references: [id], onDelete: SetNull)
+  enabled        Boolean     @default(true)
+  firedAt        DateTime?
+  createdAt      DateTime    @default(now())
+
+  @@map("alert_rules")
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

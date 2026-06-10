@@ -17,6 +17,9 @@ import { NetworksModule } from './networks/networks.module';
 import { StorageModule } from './storage/storage.module';
 import { AiModule } from './ai/ai.module';
 import { BackupsModule } from './backups/backups.module';
+import { QuotasModule } from './quotas/quotas.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { AlertsModule } from './alerts/alerts.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -43,6 +46,9 @@ import { SeedService } from './bootstrap/seed.service';
     StorageModule,
     BackupsModule,
     AiModule,
+    QuotasModule,
+    WebhooksModule,
+    AlertsModule,
   ],
   controllers: [HealthController],
   providers: [

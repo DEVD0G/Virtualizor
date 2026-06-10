@@ -1,8 +1,69 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
-import { PanelUser, Role } from '../api/types';
+import { PanelUser, ResourceQuota, Role } from '../api/types';
 import StatusBadge from '../components/StatusBadge';
+
+function QuotaEditor({ role }: { role: Role }) {
+  const qc = useQueryClient();
+  const { data: quota } = useQuery({
+    queryKey: ['quota', role.id],
+    queryFn: () => api<ResourceQuota | null>(`/roles/${role.id}/quota`).catch(() => null),
+  });
+  const [maxVms, setMaxVms] = useState('');
+  const [maxVcpus, setMaxVcpus] = useState('');
+  const [maxMemGib, setMaxMemGib] = useState('');
+  const [maxStorageGb, setMaxStorageGb] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const save = useMutation({
+    mutationFn: () => api(`/roles/${role.id}/quota`, {
+      method: 'PUT',
+      body: {
+        maxVms: maxVms ? Number(maxVms) : undefined,
+        maxVcpus: maxVcpus ? Number(maxVcpus) : undefined,
+        maxMemoryMb: maxMemGib ? Math.round(Number(maxMemGib) * 1024) : undefined,
+        maxStorageGb: maxStorageGb ? Number(maxStorageGb) : undefined,
+      },
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quota', role.id] }); setOpen(false); },
+  });
+
+  const clear = useMutation({
+    mutationFn: () => api(`/roles/${role.id}/quota`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quota', role.id] }),
+  });
+
+  if (!open) {
+    return (
+      <div className="flex items-center gap-2">
+        {quota ? (
+          <span className="text-xs text-slate-500">
+            {[
+              quota.maxVms != null && `${quota.maxVms} VMs`,
+              quota.maxVcpus != null && `${quota.maxVcpus} vCPUs`,
+              quota.maxMemoryMb != null && `${(quota.maxMemoryMb / 1024).toFixed(0)} GiB RAM`,
+              quota.maxStorageGb != null && `${quota.maxStorageGb} GiB Disk`,
+            ].filter(Boolean).join(' · ')}
+          </span>
+        ) : <span className="text-xs text-slate-400">Keine Limits</span>}
+        <button onClick={() => { setOpen(true); if (quota) { setMaxVms(quota.maxVms?.toString() ?? ''); setMaxVcpus(quota.maxVcpus?.toString() ?? ''); setMaxMemGib(quota.maxMemoryMb ? String(quota.maxMemoryMb / 1024) : ''); setMaxStorageGb(quota.maxStorageGb?.toString() ?? ''); } }} className="text-xs text-brand-500 hover:underline">Bearbeiten</button>
+        {quota && <button onClick={() => clear.mutate()} className="text-xs text-red-500 hover:underline">Entfernen</button>}
+      </div>
+    );
+  }
+
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+      <input className="input w-20" placeholder="Max VMs" type="number" min="0" value={maxVms} onChange={(e) => setMaxVms(e.target.value)} />
+      <input className="input w-24" placeholder="Max vCPUs" type="number" min="0" value={maxVcpus} onChange={(e) => setMaxVcpus(e.target.value)} />
+      <input className="input w-28" placeholder="Max RAM (GiB)" type="number" min="0" step="0.5" value={maxMemGib} onChange={(e) => setMaxMemGib(e.target.value)} />
+      <input className="input w-28" placeholder="Max Disk (GB)" type="number" min="0" value={maxStorageGb} onChange={(e) => setMaxStorageGb(e.target.value)} />
+      <button className="btn-primary" disabled={save.isPending}>Speichern</button>
+      <button type="button" className="btn-secondary" onClick={() => setOpen(false)}>Abbrechen</button>
+    </form>
+  );
+}
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
@@ -62,13 +123,14 @@ export default function UsersPage() {
       <div className="card">
         <h2 className="mb-3 font-semibold">Rollen</h2>
         <table className="table-base">
-          <thead><tr><th>Rolle</th><th>Benutzer</th><th>Permissions</th></tr></thead>
+          <thead><tr><th>Rolle</th><th>Benutzer</th><th>Ressourcen-Limits</th><th>Permissions</th></tr></thead>
           <tbody>
             {roles?.map((r) => (
               <tr key={r.id}>
                 <td className="font-medium">{r.name}{r.isSystem && <span className="ml-2 text-xs text-slate-400">(System)</span>}</td>
                 <td>{r._count.users}</td>
-                <td className="max-w-md text-xs text-slate-500">{r.permissions.map((p) => p.permissionId).join(', ')}</td>
+                <td><QuotaEditor role={r} /></td>
+                <td className="max-w-xs text-xs text-slate-500">{r.permissions.map((p) => p.permissionId).join(', ')}</td>
               </tr>
             ))}
           </tbody>

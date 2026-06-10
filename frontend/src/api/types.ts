@@ -242,6 +242,51 @@ export interface DiagnosticsResult {
   recommendations: string[];
 }
 
+export interface ResourceQuota {
+  id: string;
+  roleId: string;
+  maxVms: number | null;
+  maxVcpus: number | null;
+  maxMemoryMb: number | null;
+  maxStorageGb: number | null;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  url: string;
+  secret: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  event: string;
+  statusCode: number | null;
+  success: boolean;
+  error: string | null;
+  deliveredAt: string;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  nodeId: string | null;
+  metric: 'cpu_percent' | 'mem_used_mb' | 'mem_percent';
+  threshold: number;
+  durationMinutes: number;
+  cooldownMinutes: number;
+  webhookId: string | null;
+  enabled: boolean;
+  firedAt: string | null;
+  createdAt: string;
+  node?: { id: string; name: string } | null;
+  webhook?: { id: string; name: string } | null;
+}
+
 export interface BackupSchedule {
   id: string;
   vmId: string;

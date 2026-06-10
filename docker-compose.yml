@@ -35,6 +35,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      # ANTHROPIC_API_KEY is loaded from .env via env_file above
     volumes:
       - ./certs:/certs:ro
     depends_on:

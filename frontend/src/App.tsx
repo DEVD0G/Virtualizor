@@ -4,7 +4,9 @@ import { useAuth } from './auth/AuthContext';
 import Layout from './components/Layout';
 import ActivationPage from './pages/ActivationPage';
 import AiAssistantPage from './pages/AiAssistantPage';
+import AlertsPage from './pages/AlertsPage';
 import ApiKeysPage from './pages/ApiKeysPage';
+import WebhooksPage from './pages/WebhooksPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
 import TasksPage from './pages/TasksPage';
@@ -107,6 +109,8 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/webhooks" element={<WebhooksPage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/license" element={<LicensePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

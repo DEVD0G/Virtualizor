@@ -10,6 +10,8 @@ import { AgentClientService, VmCreateSpec } from '../agent/agent-client.service'
 import { TasksService, TaskHandler, TaskKind } from '../tasks/tasks.service';
 import { EventsGateway } from '../events/events.gateway';
 import { LicenseService } from '../license/license.service';
+import { QuotasService } from '../quotas/quotas.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { CreateVmDto } from './dto/create-vm.dto';
 
@@ -36,6 +38,8 @@ export class VmsService implements TaskHandler, OnModuleInit {
     private readonly tasks: TasksService,
     private readonly events: EventsGateway,
     private readonly license: LicenseService,
+    private readonly quotas: QuotasService,
+    private readonly webhooks: WebhooksService,
   ) {
     const url = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
     this.redis = new Redis({ host: url.hostname, port: parseInt(url.port || '6379', 10) });
@@ -71,6 +75,8 @@ export class VmsService implements TaskHandler, OnModuleInit {
   async create(user: AuthenticatedUser, dto: CreateVmDto) {
     await this.license.assertWriteAllowed();
     await this.license.assertVmLimit();
+    const totalDiskGb = dto.disks.reduce((s, d) => s + d.sizeGb, 0);
+    await this.quotas.checkVmCreateQuota(user, dto.vcpus, dto.memoryMb, totalDiskGb);
 
     const exists = await this.prisma.vm.findUnique({ where: { name: dto.name } });
     if (exists) throw new ConflictException('VM-Name bereits vergeben');
@@ -394,6 +400,7 @@ export class VmsService implements TaskHandler, OnModuleInit {
   private async setState(vmId: string, vmName: string, state: 'running' | 'stopped') {
     await this.prisma.vm.update({ where: { id: vmId }, data: { state, errorMsg: null } });
     this.events.emitVmState(vmName, state);
+    this.webhooks.fire(`vm.${state}`, { vmId, vmName, state }).catch(() => {});
   }
 
   private generateMac(): string {
