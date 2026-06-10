@@ -108,6 +108,16 @@ for i in $(seq 1 60); do
 done
 
 DOMAIN="$(grep ^PANEL_DOMAIN= .env | cut -d= -f2)"
+
+# --- Let's Encrypt (optional) --------------------------------------------------
+# Webroot-Modus über den laufenden nginx — ersetzt das Self-Signed-Zertifikat.
+if [[ "$DOMAIN" != "localhost" && ! -d "data/certbot/conf/live/${DOMAIN}" ]]; then
+  read -rp "Let's Encrypt Zertifikat für ${DOMAIN} einrichten? [Y/n]: " LE_ANSWER
+  if [[ ! "${LE_ANSWER:-y}" =~ ^[Nn] ]]; then
+    ./scripts/letsencrypt.sh || log "Let's Encrypt fehlgeschlagen — Panel läuft mit Self-Signed-Cert. Später: ./scripts/letsencrypt.sh"
+  fi
+fi
+
 log "Fertig! Panel erreichbar unter: https://${DOMAIN}/"
 log "Login: $(grep ^ADMIN_EMAIL= .env | cut -d= -f2)"
 log "Nodes hinzufügen: Join-Token im Panel erzeugen, dann auf dem Hypervisor:"
