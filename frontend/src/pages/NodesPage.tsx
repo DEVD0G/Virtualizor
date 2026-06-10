@@ -49,23 +49,44 @@ export default function NodesPage() {
       <div className="card overflow-x-auto p-0">
         <table className="table-base">
           <thead>
-            <tr><th>Name</th><th>Status</th><th>Hostname</th><th>CPU</th><th>RAM</th><th>VMs</th><th>Agent</th><th>Letzter Heartbeat</th></tr>
+            <tr><th>Name</th><th>Status</th><th>Hostname</th><th>CPU</th><th>RAM</th><th>CPU %</th><th>RAM %</th><th>VMs</th><th>Agent</th><th>Heartbeat</th></tr>
           </thead>
           <tbody>
-            {nodes?.map((n) => (
-              <tr key={n.id}>
-                <td className="font-medium">{n.name}</td>
-                <td><StatusBadge status={n.state} /></td>
-                <td>{n.hostname}</td>
-                <td>{n.cpuCores} Cores</td>
-                <td>{(n.memoryMb / 1024).toFixed(0)} GiB</td>
-                <td>{n._count?.vms ?? 0}</td>
-                <td>{n.agentVersion ?? '—'}</td>
-                <td>{n.lastHeartbeatAt ? new Date(n.lastHeartbeatAt).toLocaleTimeString() : '—'}</td>
-              </tr>
-            ))}
+            {nodes?.map((n) => {
+              const cpuPct = n.cpuUsage ?? 0;
+              const ramPct = n.memoryMb > 0 ? ((n.memUsedMb ?? 0) / n.memoryMb) * 100 : 0;
+              const barColor = (pct: number) => pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+              return (
+                <tr key={n.id}>
+                  <td className="font-medium">{n.name}</td>
+                  <td><StatusBadge status={n.state} /></td>
+                  <td>{n.hostname}</td>
+                  <td>{n.cpuCores} Cores</td>
+                  <td>{(n.memoryMb / 1024).toFixed(0)} GiB</td>
+                  <td>
+                    <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
+                        <div className={`h-1.5 rounded-full ${barColor(cpuPct)}`} style={{ width: `${cpuPct}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-500 w-8 text-right">{cpuPct.toFixed(0)}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
+                        <div className={`h-1.5 rounded-full ${barColor(ramPct)}`} style={{ width: `${ramPct}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-500 w-8 text-right">{ramPct.toFixed(0)}%</span>
+                    </div>
+                  </td>
+                  <td>{n._count?.vms ?? 0}</td>
+                  <td>{n.agentVersion ?? '—'}</td>
+                  <td>{n.lastHeartbeatAt ? new Date(n.lastHeartbeatAt).toLocaleTimeString() : '—'}</td>
+                </tr>
+              );
+            })}
             {!nodes?.length && (
-              <tr><td colSpan={8} className="text-center text-slate-400">Noch keine Nodes registriert</td></tr>
+              <tr><td colSpan={10} className="text-center text-slate-400">Noch keine Nodes registriert</td></tr>
             )}
           </tbody>
         </table>

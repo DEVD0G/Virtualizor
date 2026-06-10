@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, Length, MinLength } from 'class-validator';
 import { AuthService, AuthenticatedUser } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -14,6 +14,15 @@ class RefreshDto {
   @IsString() refreshToken: string;
 }
 
+class TotpCompleteDto {
+  @IsString() pendingToken: string;
+  @IsString() @Length(6, 6) code: string;
+}
+
+class TotpCodeDto {
+  @IsString() @Length(6, 6) code: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -23,6 +32,13 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 900_000, limit: 10 } })
+  @Post('login/totp')
+  loginTotp(@Body() dto: TotpCompleteDto) {
+    return this.auth.loginTotp(dto.pendingToken, dto.code);
   }
 
   @Public()
@@ -41,5 +57,22 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
+  }
+
+  // ─── TOTP setup (authenticated) ─────────────────────────────────────────────
+
+  @Post('totp/setup')
+  totpSetup(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.totpSetup(user.id);
+  }
+
+  @Post('totp/confirm')
+  totpConfirm(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpConfirm(user.id, dto.code);
+  }
+
+  @Delete('totp')
+  totpDisable(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpDisable(user.id, dto.code);
   }
 }

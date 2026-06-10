@@ -68,19 +68,22 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="text-slate-500 dark:text-slate-400">{user?.role}</div>
           </div>
           <div className="flex gap-2">
-            <button className="btn-secondary flex-1" onClick={() => setDark(!dark)}>
-              {dark ? 'Hell' : 'Dunkel'}
-            </button>
-            <button
-              className="btn-secondary flex-1"
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }}
+            <NavLink
+              to="/settings"
+              className="btn-secondary flex-1 text-center"
             >
-              Logout
+              Einstellungen
+            </NavLink>
+            <button className="btn-secondary" onClick={() => setDark(!dark)} title={dark ? 'Hell' : 'Dunkel'}>
+              {dark ? '☀' : '☾'}
             </button>
           </div>
+          <button
+            className="btn-secondary w-full mt-2"
+            onClick={() => { logout(); navigate('/login'); }}
+          >
+            Logout
+          </button>
         </div>
       </aside>
 

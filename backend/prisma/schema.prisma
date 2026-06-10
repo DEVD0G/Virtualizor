@@ -15,6 +15,8 @@ model User {
   passwordHash String
   name         String
   isActive     Boolean  @default(true)
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
   roleId       String
   role         Role     @relation(fields: [roleId], references: [id])
   createdAt    DateTime @default(now())
@@ -105,6 +107,8 @@ model Node {
   memoryMb        Int       @default(0)
   cpuOvercommit   Float     @default(4.0)
   memOvercommit   Float     @default(1.0)
+  cpuUsage        Float     @default(0)
+  memUsedMb       Int       @default(0)
   lastHeartbeatAt DateTime?
   agentVersion    String?
   createdAt       DateTime  @default(now())
@@ -113,8 +117,22 @@ model Node {
   vms          Vm[]
   storagePools StoragePool[]
   activations  LicenseActivation[]
+  metricSamples NodeMetricSample[]
 
   @@map("nodes")
+}
+
+model NodeMetricSample {
+  id         String   @id @default(uuid())
+  nodeId     String
+  node       Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  cpuPercent Float
+  memUsedMb  Int
+  vmsRunning Int      @default(0)
+  sampledAt  DateTime @default(now())
+
+  @@index([nodeId, sampledAt])
+  @@map("node_metric_samples")
 }
 
 model JoinToken {

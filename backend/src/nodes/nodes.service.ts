@@ -113,6 +113,8 @@ export class NodesService {
   }
 
   async heartbeat(nodeId: string, payload: HeartbeatPayload) {
+    const vmsRunning = payload.vms.filter((v) => v.state === 'running').length;
+
     const node = await this.prisma.node.update({
       where: { id: nodeId },
       data: {
@@ -121,10 +123,20 @@ export class NodesService {
         agentVersion: payload.agentVersion,
         cpuCores: payload.cpuCores,
         memoryMb: payload.memoryMb,
+        cpuUsage: payload.metrics.cpuPercent,
+        memUsedMb: payload.metrics.memUsedMb,
       },
     });
 
-    // Laufzeitzustand der VMs mit der DB abgleichen (libvirt = Source of Truth)
+    await this.prisma.nodeMetricSample.create({
+      data: {
+        nodeId,
+        cpuPercent: payload.metrics.cpuPercent,
+        memUsedMb: payload.metrics.memUsedMb,
+        vmsRunning,
+      },
+    });
+
     for (const vm of payload.vms) {
       const updated = await this.prisma.vm.updateMany({
         where: { name: vm.name, nodeId, state: { in: ['running', 'stopped', 'paused'] } },
@@ -135,6 +147,22 @@ export class NodesService {
 
     this.events.emitNodeState(node.id, 'online', payload.metrics);
     return { ok: true };
+  }
+
+  async getMetrics(nodeId: string, hours = 1) {
+    const since = new Date(Date.now() - hours * 3_600_000);
+    return this.prisma.nodeMetricSample.findMany({
+      where: { nodeId, sampledAt: { gte: since } },
+      orderBy: { sampledAt: 'asc' },
+      select: { sampledAt: true, cpuPercent: true, memUsedMb: true, vmsRunning: true },
+    });
+  }
+
+  /** Metrik-Samples älter als 7 Tage täglich bereinigen. */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async pruneOldMetrics() {
+    const cutoff = new Date(Date.now() - 7 * 86_400_000);
+    await this.prisma.nodeMetricSample.deleteMany({ where: { sampledAt: { lt: cutoff } } });
   }
 
   async setMaintenance(id: string, maintenance: boolean) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Ip, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -34,6 +34,12 @@ export class NodesController {
   @RequirePermissions('node.read')
   get(@Param('id') id: string) {
     return this.nodes.get(id);
+  }
+
+  @Get(':id/metrics')
+  @RequirePermissions('node.read')
+  metrics(@Param('id') id: string, @Query('hours') hours?: string) {
+    return this.nodes.getMetrics(id, hours ? Math.min(parseInt(hours, 10), 168) : 1);
   }
 
   @Post('join-tokens')

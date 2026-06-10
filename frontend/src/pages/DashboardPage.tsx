@@ -14,6 +14,22 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
   );
 }
 
+function UsageBar({ value, max, label }: { value: number; max: number; label: string }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-slate-500">
+        <span>{label}</span>
+        <span>{pct.toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
+        <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { can } = useAuth();
   const { data: vms } = useQuery({ queryKey: ['vms'], queryFn: () => api<Vm[]>('/vms') });
@@ -21,10 +37,11 @@ export default function DashboardPage() {
     queryKey: ['nodes'],
     queryFn: () => api<Node[]>('/nodes'),
     enabled: can('node.read'),
+    refetchInterval: 30_000,
   });
 
   const running = vms?.filter((v) => v.state === 'running').length ?? 0;
-  const online = nodes?.filter((n) => n.state === 'online').length ?? 0;
+  const online  = nodes?.filter((n) => n.state === 'online').length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -36,6 +53,35 @@ export default function DashboardPage() {
         {can('node.read') && <Stat label="Nodes" value={nodes?.length ?? '—'} />}
         {can('node.read') && <Stat label="Nodes online" value={online} accent />}
       </div>
+
+      {/* Node utilisation cards */}
+      {can('node.read') && nodes && nodes.filter((n) => n.state === 'online').length > 0 && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+            Node-Auslastung
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {nodes.filter((n) => n.state === 'online').map((n) => (
+              <div key={n.id} className="card space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{n.name}</span>
+                  <span className="text-xs text-slate-500">{n._count?.vms ?? 0} VMs</span>
+                </div>
+                <UsageBar
+                  label={`CPU (${n.cpuCores} Cores)`}
+                  value={n.cpuUsage ?? 0}
+                  max={100}
+                />
+                <UsageBar
+                  label={`RAM (${(n.memoryMb / 1024).toFixed(0)} GiB)`}
+                  value={(n.memUsedMb ?? 0) / 1024}
+                  max={n.memoryMb / 1024}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="mb-4 flex items-center justify-between">

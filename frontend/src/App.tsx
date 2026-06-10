@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import ActivationPage from './pages/ActivationPage';
 import ApiKeysPage from './pages/ApiKeysPage';
 import AuditPage from './pages/AuditPage';
+import SettingsPage from './pages/SettingsPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/nodes" element={<NodesPage />} />
         <Route path="/storage" element={<StoragePage />} />
         <Route path="/api-keys" element={<ApiKeysPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/license" element={<LicensePage />} />

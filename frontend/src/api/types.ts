@@ -4,6 +4,7 @@ export interface User {
   name: string;
   role: string;
   permissions: string[];
+  totpEnabled: boolean;
 }
 
 export interface Node {
@@ -13,9 +14,18 @@ export interface Node {
   state: 'joining' | 'online' | 'offline' | 'maintenance';
   cpuCores: number;
   memoryMb: number;
+  cpuUsage: number;
+  memUsedMb: number;
   lastHeartbeatAt: string | null;
   agentVersion: string | null;
   _count?: { vms: number };
+}
+
+export interface MetricSample {
+  sampledAt: string;
+  cpuPercent: number;
+  memUsedMb: number;
+  vmsRunning: number;
 }
 
 export interface Vm {
