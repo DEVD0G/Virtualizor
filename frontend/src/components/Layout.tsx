@@ -5,9 +5,11 @@ import { api } from '../api/client';
 import { LicenseState } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { useLiveEvents } from '../hooks/useSocket';
+import AiPanel from './AiPanel';
 
 const nav = [
   { to: '/', label: 'Dashboard', perm: null },
+  { to: '/ai', label: '✦ KI-Assistent', perm: 'vm.read' },
   { to: '/vms', label: 'Virtual Machines', perm: 'vm.read' },
   { to: '/nodes', label: 'Nodes', perm: 'node.read' },
   { to: '/networks', label: 'Netzwerke', perm: 'network.read' },
@@ -102,6 +104,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
         <div className="mx-auto max-w-6xl p-6">{children}</div>
       </main>
+      <AiPanel />
     </div>
   );
 }

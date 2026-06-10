@@ -192,6 +192,41 @@ export interface FirewallRule {
   priority: number;
 }
 
+// ─── AI Assistant ────────────────────────────────────────────────────────────
+
+export interface AiActionStep {
+  capability: string;
+  params: Record<string, any>;
+  description: string;
+  reversible: boolean;
+}
+
+export interface AiActionPlan {
+  intent: string;
+  explanation: string;
+  steps: AiActionStep[];
+  riskLevel: 'low' | 'medium' | 'high';
+  warnings?: string[];
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  actionPlan?: AiActionPlan;
+  planId?: string;
+  planStatus?: 'pending' | 'executing' | 'done' | 'rejected';
+}
+
+export interface AiExecuteResult {
+  stepIndex: number;
+  capability: string;
+  success: boolean;
+  taskId?: string;
+  resourceId?: string;
+  error?: string;
+}
+
 export interface BackupSchedule {
   id: string;
   vmId: string;

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import Layout from './components/Layout';
 import ActivationPage from './pages/ActivationPage';
+import AiAssistantPage from './pages/AiAssistantPage';
 import ApiKeysPage from './pages/ApiKeysPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
@@ -94,6 +95,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/ai" element={<AiAssistantPage />} />
         <Route path="/vms" element={<VmListPage />} />
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
