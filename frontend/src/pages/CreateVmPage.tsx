@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
-import { Node } from '../api/types';
+import { Node, Template } from '../api/types';
 
 interface Network { id: string; name: string; ipPools: { id: string; cidr: string }[] }
 
@@ -15,11 +15,18 @@ export default function CreateVmPage() {
   const [nodeId, setNodeId] = useState('');
   const [networkId, setNetworkId] = useState('');
   const [ipPoolId, setIpPoolId] = useState('');
+  const [templateId, setTemplateId] = useState('');
   const [sshKey, setSshKey] = useState('');
   const [error, setError] = useState('');
 
   const { data: nodes } = useQuery({ queryKey: ['nodes'], queryFn: () => api<Node[]>('/nodes') });
   const { data: networks } = useQuery({ queryKey: ['networks'], queryFn: () => api<Network[]>('/networks') });
+  const { data: templates } = useQuery({ queryKey: ['storage', 'templates'], queryFn: () => api<Template[]>('/storage/templates') });
+
+  // Pre-select first template once loaded
+  useEffect(() => {
+    if (templates?.length && !templateId) setTemplateId(templates[0].id);
+  }, [templates, templateId]);
 
   const create = useMutation({
     mutationFn: () =>
@@ -31,7 +38,7 @@ export default function CreateVmPage() {
           memoryMb: memoryGb * 1024,
           disks: [{ sizeGb: diskGb }],
           nics: [{ networkId, ...(ipPoolId ? { ipPoolId } : {}) }],
-          templateId: 'ubuntu-24.04',
+          templateId,
           ...(nodeId ? { nodeId } : {}),
           cloudInit: sshKey ? { sshKeys: [sshKey.trim()] } : undefined,
         },
@@ -75,6 +82,14 @@ export default function CreateVmPage() {
             <input className="input" type="number" min={10} max={16384} value={diskGb}
               onChange={(e) => setDiskGb(+e.target.value)} />
           </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">OS-Template</label>
+          <select className="input" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
+            <option value="">— wählen —</option>
+            {templates?.map((t) => <option key={t.id} value={t.id}>{t.name} (min. {t.minDiskGb} GB)</option>)}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

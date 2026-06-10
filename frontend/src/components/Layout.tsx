@@ -10,6 +10,8 @@ const nav = [
   { to: '/', label: 'Dashboard', perm: null },
   { to: '/vms', label: 'Virtual Machines', perm: 'vm.read' },
   { to: '/nodes', label: 'Nodes', perm: 'node.read' },
+  { to: '/storage', label: 'Storage', perm: 'storage.read' },
+  { to: '/api-keys', label: 'API-Keys', perm: null },
   { to: '/users', label: 'Benutzer & Rollen', perm: 'user.manage' },
   { to: '/audit', label: 'Audit-Log', perm: 'audit.read' },
   { to: '/license', label: 'Lizenz', perm: 'license.read' },

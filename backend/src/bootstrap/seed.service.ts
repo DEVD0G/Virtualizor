@@ -78,16 +78,39 @@ export class SeedService implements OnApplicationBootstrap {
       }
     }
 
-    await this.prisma.template.upsert({
-      where: { id: 'ubuntu-24.04' },
-      update: {},
-      create: {
+    const defaultTemplates = [
+      {
         id: 'ubuntu-24.04',
-        name: 'Ubuntu 24.04 LTS (cloud image)',
+        name: 'Ubuntu 24.04 LTS',
         sourceUrl: 'https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img',
         sha256: '',
+        osType: 'linux',
         minDiskGb: 10,
       },
-    });
+      {
+        id: 'ubuntu-22.04',
+        name: 'Ubuntu 22.04 LTS',
+        sourceUrl: 'https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img',
+        sha256: '',
+        osType: 'linux',
+        minDiskGb: 10,
+      },
+      {
+        id: 'debian-12',
+        name: 'Debian 12 (Bookworm)',
+        sourceUrl: 'https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2',
+        sha256: '',
+        osType: 'linux',
+        minDiskGb: 10,
+      },
+    ];
+
+    for (const t of defaultTemplates) {
+      await this.prisma.template.upsert({
+        where: { id: t.id },
+        update: {},
+        create: t,
+      });
+    }
   }
 }

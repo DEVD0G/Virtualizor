@@ -84,3 +84,30 @@ export interface PanelUser {
   createdAt: string;
   role: { id: string; name: string };
 }
+
+export interface Template {
+  id: string;
+  name: string;
+  sourceUrl: string;
+  sha256: string;
+  osType: string;
+  minDiskGb: number;
+}
+
+export interface Iso {
+  id: string;
+  name: string;
+  sourceUrl: string;
+  sha256: string;
+  sizeBytes: number | null;
+  createdAt: string;
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt: string | null;
+  createdAt: string;
+}

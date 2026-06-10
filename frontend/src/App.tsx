@@ -3,12 +3,14 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import Layout from './components/Layout';
 import ActivationPage from './pages/ActivationPage';
+import ApiKeysPage from './pages/ApiKeysPage';
 import AuditPage from './pages/AuditPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
 import LoginPage from './pages/LoginPage';
 import NodesPage from './pages/NodesPage';
+import StoragePage from './pages/StoragePage';
 import UsersPage from './pages/UsersPage';
 import VmDetailPage from './pages/VmDetailPage';
 import VmListPage from './pages/VmListPage';
@@ -92,6 +94,8 @@ export default function App() {
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
         <Route path="/nodes" element={<NodesPage />} />
+        <Route path="/storage" element={<StoragePage />} />
+        <Route path="/api-keys" element={<ApiKeysPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/license" element={<LicensePage />} />
