@@ -172,6 +172,32 @@ export class NodesService {
     });
   }
 
+  // ─── Storage Pools ─────────────────────────────────────────────────────────
+
+  async createStoragePool(nodeId: string, dto: {
+    name: string; type: 'dir' | 'zfs' | 'nfs' | 'iscsi'; path: string; isDefault?: boolean;
+  }) {
+    const node = await this.prisma.node.findUnique({ where: { id: nodeId } });
+    if (!node) throw new NotFoundException('Node nicht gefunden');
+    if (dto.isDefault) {
+      await this.prisma.storagePool.updateMany({ where: { nodeId }, data: { isDefault: false } });
+    }
+    return this.prisma.storagePool.create({ data: { nodeId, ...dto, isDefault: dto.isDefault ?? false } });
+  }
+
+  async setDefaultPool(nodeId: string, poolId: string) {
+    await this.prisma.storagePool.updateMany({ where: { nodeId }, data: { isDefault: false } });
+    return this.prisma.storagePool.update({ where: { id: poolId }, data: { isDefault: true } });
+  }
+
+  async removeStoragePool(nodeId: string, poolId: string) {
+    const pool = await this.prisma.storagePool.findFirst({ where: { id: poolId, nodeId } });
+    if (!pool) throw new NotFoundException('Storage-Pool nicht gefunden');
+    const volumes = await this.prisma.volume.count({ where: { storagePoolId: poolId } });
+    if (volumes > 0) throw new BadRequestException('Pool hat noch Volumes');
+    await this.prisma.storagePool.delete({ where: { id: poolId } });
+  }
+
   async remove(id: string) {
     const count = await this.prisma.vm.count({ where: { nodeId: id } });
     if (count > 0) throw new BadRequestException('Node hat noch VMs');

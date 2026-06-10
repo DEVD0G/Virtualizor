@@ -1,7 +1,7 @@
 import {
-  Body, Controller, Delete, Get, Param, Post, Query,
+  Body, Controller, Delete, Get, HttpCode, Param, Post, Query,
 } from '@nestjs/common';
-import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
@@ -9,12 +9,22 @@ import { CreateVmDto } from './dto/create-vm.dto';
 import { VmsService } from './vms.service';
 
 class StopDto {
-  @IsOptional() @IsBoolean() force?: boolean;
+  @IsOptional() force?: boolean;
 }
 
 class SnapshotDto {
-  @Matches(/^[a-z0-9][a-z0-9-]{1,62}$/) name: string;
+  @IsString() name: string;
   @IsOptional() @IsString() description?: string;
+}
+
+class CreateFirewallRuleDto {
+  @IsIn(['in', 'out']) direction: 'in' | 'out';
+  @IsIn(['accept', 'drop']) action: 'accept' | 'drop';
+  @IsIn(['tcp', 'udp', 'icmp', 'any']) protocol: string;
+  @IsOptional() @IsInt() @Min(1) @Max(65535) portFrom?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(65535) portTo?: number;
+  @IsOptional() @IsString() cidr?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(1000) priority?: number;
 }
 
 @Controller('vms')
@@ -107,5 +117,32 @@ export class VmsController {
   @RequirePermissions('vm.console')
   console(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.vms.consoleToken(user, id);
+  }
+
+  @Get(':id/firewall')
+  @RequirePermissions('vm.firewall')
+  listFirewall(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.vms.listFirewallRules(user, id);
+  }
+
+  @Post(':id/firewall')
+  @RequirePermissions('vm.firewall')
+  createFirewallRule(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreateFirewallRuleDto,
+  ) {
+    return this.vms.createFirewallRule(user, id, dto);
+  }
+
+  @Delete(':id/firewall/:ruleId')
+  @HttpCode(204)
+  @RequirePermissions('vm.firewall')
+  deleteFirewallRule(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('ruleId') ruleId: string,
+  ) {
+    return this.vms.deleteFirewallRule(user, id, ruleId);
   }
 }

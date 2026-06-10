@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, Snapshot, Vm } from '../api/types';
+import { Backup, FirewallRule, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import VncConsole from '../components/VncConsole';
@@ -14,6 +14,15 @@ export default function VmDetailPage() {
   const queryClient = useQueryClient();
   const [snapName, setSnapName] = useState('');
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
+  const [fwForm, setFwForm] = useState({
+    direction: 'in' as 'in' | 'out',
+    action: 'accept' as 'accept' | 'drop',
+    protocol: 'tcp',
+    portFrom: '',
+    portTo: '',
+    cidr: '0.0.0.0/0',
+    priority: '100',
+  });
 
   const { data: vm } = useQuery({
     queryKey: ['vms', id],
@@ -30,11 +39,17 @@ export default function VmDetailPage() {
     enabled: can('backup.read'),
     refetchInterval: 15_000,
   });
+  const { data: firewallRules } = useQuery({
+    queryKey: ['vms', id, 'firewall'],
+    queryFn: () => api<FirewallRule[]>(`/vms/${id}/firewall`),
+    enabled: can('vm.firewall'),
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['vms'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'snapshots'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'backups'] });
+    queryClient.invalidateQueries({ queryKey: ['vms', id, 'firewall'] });
   };
 
   const action = useMutation({
@@ -210,6 +225,72 @@ export default function VmDetailPage() {
                 </tr>
               ))}
               {!snapshots?.length && <tr><td colSpan={3} className="text-center text-slate-400">Keine Snapshots</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {can('vm.firewall') && (
+        <div className="card">
+          <h2 className="mb-3 font-semibold">Firewall</h2>
+          <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+            <select className="input" value={fwForm.direction} onChange={(e) => setFwForm({ ...fwForm, direction: e.target.value as 'in' | 'out' })}>
+              <option value="in">Eingehend</option>
+              <option value="out">Ausgehend</option>
+            </select>
+            <select className="input" value={fwForm.action} onChange={(e) => setFwForm({ ...fwForm, action: e.target.value as 'accept' | 'drop' })}>
+              <option value="accept">Erlauben</option>
+              <option value="drop">Blockieren</option>
+            </select>
+            <select className="input" value={fwForm.protocol} onChange={(e) => setFwForm({ ...fwForm, protocol: e.target.value })}>
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+              <option value="icmp">ICMP</option>
+              <option value="any">Alle</option>
+            </select>
+            <input className="input" placeholder="Port von" type="number" value={fwForm.portFrom}
+              onChange={(e) => setFwForm({ ...fwForm, portFrom: e.target.value })} />
+            <input className="input" placeholder="Port bis" type="number" value={fwForm.portTo}
+              onChange={(e) => setFwForm({ ...fwForm, portTo: e.target.value })} />
+            <input className="input" placeholder="CIDR" value={fwForm.cidr}
+              onChange={(e) => setFwForm({ ...fwForm, cidr: e.target.value })} />
+            <button className="btn-primary" onClick={() => {
+              action.mutate({
+                path: `/vms/${vm.id}/firewall`,
+                body: {
+                  direction: fwForm.direction,
+                  action: fwForm.action,
+                  protocol: fwForm.protocol,
+                  ...(fwForm.portFrom ? { portFrom: parseInt(fwForm.portFrom) } : {}),
+                  ...(fwForm.portTo ? { portTo: parseInt(fwForm.portTo) } : {}),
+                  cidr: fwForm.cidr || '0.0.0.0/0',
+                  priority: parseInt(fwForm.priority) || 100,
+                },
+              });
+            }}>
+              Regel hinzufügen
+            </button>
+          </div>
+          <table className="table-base">
+            <thead><tr><th>Richtung</th><th>Aktion</th><th>Protokoll</th><th>Ports</th><th>CIDR</th><th>Priorität</th><th></th></tr></thead>
+            <tbody>
+              {firewallRules?.map((r) => (
+                <tr key={r.id}>
+                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.direction === 'in' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400'}`}>{r.direction === 'in' ? '↓ Ein' : '↑ Aus'}</span></td>
+                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.action === 'accept' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>{r.action === 'accept' ? 'Erlaubt' : 'Geblockt'}</span></td>
+                  <td className="uppercase text-xs font-mono">{r.protocol}</td>
+                  <td className="text-xs">{r.portFrom ? `${r.portFrom}${r.portTo && r.portTo !== r.portFrom ? `–${r.portTo}` : ''}` : '—'}</td>
+                  <td className="font-mono text-xs">{r.cidr}</td>
+                  <td>{r.priority}</td>
+                  <td className="text-right">
+                    <button className="btn-danger text-xs"
+                      onClick={() => action.mutate({ path: `/vms/${vm.id}/firewall/${r.id}`, method: 'DELETE' })}>
+                      Löschen
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!firewallRules?.length && <tr><td colSpan={7} className="text-center text-slate-400">Keine Regeln</td></tr>}
             </tbody>
           </table>
         </div>

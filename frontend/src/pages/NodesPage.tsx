@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Node } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -58,7 +59,7 @@ export default function NodesPage() {
               const barColor = (pct: number) => pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
               return (
                 <tr key={n.id}>
-                  <td className="font-medium">{n.name}</td>
+                  <td><Link className="font-medium text-brand-500 hover:underline" to={`/nodes/${n.id}`}>{n.name}</Link></td>
                   <td><StatusBadge status={n.state} /></td>
                   <td>{n.hostname}</td>
                   <td>{n.cpuCores} Cores</td>

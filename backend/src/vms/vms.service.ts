@@ -180,6 +180,45 @@ export class VmsService implements TaskHandler, OnModuleInit {
     return { taskId: task.id };
   }
 
+  // ─── Firewall ──────────────────────────────────────────────────────────────
+
+  async listFirewallRules(user: AuthenticatedUser, vmId: string) {
+    await this.get(user, vmId);
+    return this.prisma.firewallRule.findMany({
+      where: { vmId },
+      orderBy: [{ direction: 'asc' }, { priority: 'asc' }],
+    });
+  }
+
+  async createFirewallRule(user: AuthenticatedUser, vmId: string, dto: {
+    direction: 'in' | 'out';
+    action: 'accept' | 'drop';
+    protocol: string;
+    portFrom?: number;
+    portTo?: number;
+    cidr?: string;
+    priority?: number;
+  }) {
+    await this.get(user, vmId);
+    return this.prisma.firewallRule.create({
+      data: {
+        vmId,
+        direction: dto.direction,
+        action: dto.action,
+        protocol: dto.protocol,
+        portFrom: dto.portFrom ?? null,
+        portTo: dto.portTo ?? null,
+        cidr: dto.cidr ?? '0.0.0.0/0',
+        priority: dto.priority ?? 100,
+      },
+    });
+  }
+
+  async deleteFirewallRule(user: AuthenticatedUser, vmId: string, ruleId: string) {
+    await this.get(user, vmId);
+    await this.prisma.firewallRule.deleteMany({ where: { id: ruleId, vmId } });
+  }
+
   async consoleToken(user: AuthenticatedUser, vmId: string) {
     const vm = await this.get(user, vmId);
     const node = await this.prisma.node.findUniqueOrThrow({ where: { id: vm.nodeId } });

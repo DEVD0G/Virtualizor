@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query } from '@nestjs/common';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Body, Controller, Delete, Get, HttpCode, Ip, Param, Patch, Post, Query } from '@nestjs/common';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { HeartbeatPayload, NodesService } from './nodes.service';
@@ -18,6 +18,13 @@ class JoinDto {
 
 class PatchNodeDto {
   @IsOptional() @IsBoolean() maintenance?: boolean;
+}
+
+class CreatePoolDto {
+  @IsString() name: string;
+  @IsIn(['dir', 'zfs', 'nfs', 'iscsi']) type: 'dir' | 'zfs' | 'nfs' | 'iscsi';
+  @IsString() path: string;
+  @IsOptional() @IsBoolean() isDefault?: boolean;
 }
 
 @Controller('nodes')
@@ -74,5 +81,24 @@ export class NodesController {
   @RequirePermissions('node.manage')
   remove(@Param('id') id: string) {
     return this.nodes.remove(id);
+  }
+
+  @Post(':id/storage-pools')
+  @RequirePermissions('node.manage')
+  createPool(@Param('id') id: string, @Body() dto: CreatePoolDto) {
+    return this.nodes.createStoragePool(id, dto);
+  }
+
+  @Patch(':id/storage-pools/:poolId/default')
+  @RequirePermissions('node.manage')
+  setDefaultPool(@Param('id') id: string, @Param('poolId') poolId: string) {
+    return this.nodes.setDefaultPool(id, poolId);
+  }
+
+  @Delete(':id/storage-pools/:poolId')
+  @HttpCode(204)
+  @RequirePermissions('node.manage')
+  removePool(@Param('id') id: string, @Param('poolId') poolId: string) {
+    return this.nodes.removeStoragePool(id, poolId);
   }
 }

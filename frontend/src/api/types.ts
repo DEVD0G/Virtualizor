@@ -149,3 +149,41 @@ export interface IpPool {
   dns: string[];
   _count?: { addresses: number };
 }
+
+export interface StoragePool {
+  id: string;
+  name: string;
+  type: 'dir' | 'zfs' | 'nfs' | 'iscsi';
+  path: string;
+  totalGb: number;
+  usedGb: number;
+  isDefault: boolean;
+}
+
+export interface NodeDetail {
+  id: string;
+  name: string;
+  hostname: string;
+  agentAddress: string;
+  state: 'joining' | 'online' | 'offline' | 'maintenance';
+  cpuCores: number;
+  memoryMb: number;
+  cpuUsage: number;
+  memUsedMb: number;
+  agentVersion: string | null;
+  lastHeartbeatAt: string | null;
+  storagePools: StoragePool[];
+  vms: { id: string; name: string; state: string; vcpus: number; memoryMb: number }[];
+}
+
+export interface FirewallRule {
+  id: string;
+  vmId: string;
+  direction: 'in' | 'out';
+  action: 'accept' | 'drop';
+  protocol: string;
+  portFrom: number | null;
+  portTo: number | null;
+  cidr: string;
+  priority: number;
+}
