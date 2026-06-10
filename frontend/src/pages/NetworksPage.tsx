@@ -90,7 +90,8 @@ export default function NetworksPage() {
             <div>
               <label className="label">Name</label>
               <input className="input" placeholder="mein-netz" value={netForm.name}
-                onChange={(e) => setNetForm({ ...netForm, name: e.target.value })} />
+                onChange={(e) => setNetForm({ ...netForm, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} />
+              <p className="mt-1 text-xs text-slate-500">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
             </div>
             <div>
               <label className="label">Modus</label>
@@ -111,15 +112,15 @@ export default function NetworksPage() {
                 onChange={(e) => setNetForm({ ...netForm, vlanTag: e.target.value })} />
             </div>
           </div>
-          <div className="flex justify-end">
-            <button className="btn-primary" onClick={() => createNet.mutate(netForm)}
-              disabled={createNet.isPending || !netForm.name || !netForm.bridge}>
-              {createNet.isPending ? 'Erstelle…' : 'Erstellen'}
-            </button>
-          </div>
           {createNet.isError && (
             <p className="text-sm text-red-500">{(createNet.error as any)?.message}</p>
           )}
+          <div className="flex justify-end">
+            <button className="btn-primary" onClick={() => createNet.mutate(netForm)}
+              disabled={createNet.isPending || netForm.name.length < 3 || !netForm.bridge}>
+              {createNet.isPending ? 'Erstelle…' : 'Erstellen'}
+            </button>
+          </div>
         </div>
       )}
 

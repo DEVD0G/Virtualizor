@@ -4,7 +4,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { PrismaService } from '../prisma/prisma.service';
 
 class CreateNetworkDto {
-  @Matches(/^[a-z0-9][a-z0-9-]{2,62}$/) name: string;
+  @Matches(/^[a-z0-9][-a-z0-9]{2,62}$/, { message: 'Name: 3–63 Zeichen, nur a-z, 0-9 und Bindestrich' }) name: string;
   @IsIn(['bridged', 'nat']) mode: 'bridged' | 'nat';
   @Matches(/^[a-zA-Z0-9_.-]{1,15}$/) bridge: string;
   @IsOptional() @IsInt() @Min(1) @Max(4094) vlanTag?: number;

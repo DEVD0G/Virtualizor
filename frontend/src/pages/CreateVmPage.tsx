@@ -38,7 +38,7 @@ export default function CreateVmPage() {
           memoryMb: memoryGb * 1024,
           disks: [{ sizeGb: diskGb }],
           nics: [{ networkId, ...(ipPoolId ? { ipPoolId } : {}) }],
-          templateId,
+          ...(templateId ? { templateId } : {}),
           ...(nodeId ? { nodeId } : {}),
           cloudInit: sshKey ? { sshKeys: [sshKey.trim()] } : undefined,
         },
@@ -50,6 +50,7 @@ export default function CreateVmPage() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!networkId) { setError('Bitte ein Netzwerk wählen.'); return; }
     create.mutate();
   };
 
@@ -62,7 +63,7 @@ export default function CreateVmPage() {
         <div>
           <label className="mb-1 block text-sm font-medium">Name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)}
-            pattern="[a-z0-9][a-z0-9-]{2,62}" placeholder="web-01" required />
+            pattern="[a-z0-9][-a-z0-9]{2,62}" placeholder="web-01" required />
           <p className="mt-1 text-xs text-slate-500">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
         </div>
 
