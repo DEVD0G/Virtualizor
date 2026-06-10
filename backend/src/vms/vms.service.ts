@@ -259,6 +259,16 @@ export class VmsService implements TaskHandler, OnModuleInit {
         await this.agent.deleteSnapshot(node, vm.name, payload.snapshotName);
         await this.prisma.vmSnapshot.deleteMany({ where: { id: payload.snapshotId } });
         break;
+      case 'vm.backup': {
+        onProgress(5);
+        const result = await this.agent.backupVm(node, vm.name, payload.targetDir);
+        const totalBytes = BigInt(result.totalBytes ?? 0);
+        await this.prisma.backup.update({
+          where: { id: payload.backupId },
+          data: { state: 'completed', sizeBytes: totalBytes, target: result.targetDir },
+        });
+        break;
+      }
     }
   }
 

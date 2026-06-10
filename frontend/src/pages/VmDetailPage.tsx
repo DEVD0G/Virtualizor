@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Snapshot, Vm } from '../api/types';
+import { Backup, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import VncConsole from '../components/VncConsole';
@@ -24,10 +24,17 @@ export default function VmDetailPage() {
     queryKey: ['vms', id, 'snapshots'],
     queryFn: () => api<Snapshot[]>(`/vms/${id}/snapshots`),
   });
+  const { data: backups } = useQuery({
+    queryKey: ['vms', id, 'backups'],
+    queryFn: () => api<Backup[]>(`/vms/${id}/backups`),
+    enabled: can('backup.read'),
+    refetchInterval: 15_000,
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['vms'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'snapshots'] });
+    queryClient.invalidateQueries({ queryKey: ['vms', id, 'backups'] });
   };
 
   const action = useMutation({
@@ -122,6 +129,51 @@ export default function VmDetailPage() {
           </ul>
         </div>
       </div>
+
+      {can('backup.read') && (
+        <div className="card">
+          <h2 className="mb-3 font-semibold">Backups</h2>
+          {can('backup.manage') && (
+            <div className="mb-4">
+              <button
+                className="btn-secondary"
+                disabled={action.isPending}
+                onClick={() => action.mutate({ path: `/vms/${vm.id}/backups`, body: {} })}
+              >
+                Backup erstellen
+              </button>
+            </div>
+          )}
+          <table className="table-base">
+            <thead><tr><th>Erstellt</th><th>Ziel</th><th>Größe</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {backups?.map((b) => (
+                <tr key={b.id}>
+                  <td>{new Date(b.createdAt).toLocaleString()}</td>
+                  <td className="font-mono text-xs max-w-[200px] truncate">{b.target}</td>
+                  <td>{b.sizeBytes ? `${(Number(b.sizeBytes) / 1024 / 1024).toFixed(0)} MB` : '—'}</td>
+                  <td>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      b.state === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                      : b.state === 'running' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                    }`}>{b.state}</span>
+                  </td>
+                  <td className="text-right">
+                    {can('backup.manage') && (
+                      <button className="btn-danger text-xs"
+                        onClick={() => action.mutate({ path: `/vms/${vm.id}/backups/${b.id}`, method: 'DELETE' })}>
+                        Löschen
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!backups?.length && <tr><td colSpan={5} className="text-center text-slate-400">Keine Backups</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {can('vm.snapshot') && (
         <div className="card">

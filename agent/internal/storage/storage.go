@@ -101,6 +101,25 @@ func (s *Store) CreateVolume(name string, sizeGb int, templatePath string) (stri
 	return path, nil
 }
 
+// BackupVolume erstellt eine kompakte, eigenständige qcow2-Kopie eines Volumes
+// im Zielverzeichnis. Gibt den Zielpfad und die Dateigröße zurück.
+// Läuft auch bei laufender VM (QEMU COW sichert Konsistenz auf Blockebene).
+func (s *Store) BackupVolume(sourcePath, targetDir, filename string) (string, int64, error) {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil {
+		return "", 0, fmt.Errorf("backup-verzeichnis: %w", err)
+	}
+	outPath := filepath.Join(targetDir, filename)
+	cmd := exec.Command(qemuImgBin, "convert", "-O", "qcow2", "-c", sourcePath, outPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", 0, fmt.Errorf("qemu-img convert: %s: %w", out, err)
+	}
+	fi, err := os.Stat(outPath)
+	if err != nil {
+		return "", 0, err
+	}
+	return outPath, fi.Size(), nil
+}
+
 func (s *Store) DeleteVolume(name string) error {
 	path, err := safePath(s.ImagesDir, name+".qcow2")
 	if err != nil {

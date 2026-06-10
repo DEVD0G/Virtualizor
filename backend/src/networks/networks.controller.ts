@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { IsArray, IsIn, IsInt, IsIP, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -77,6 +77,27 @@ export class NetworksController {
       });
       return pool;
     });
+  }
+
+  @Delete('networks/:id')
+  @HttpCode(204)
+  @RequirePermissions('network.manage')
+  async deleteNetwork(@Param('id') id: string) {
+    const net = await this.prisma.network.findUnique({ where: { id }, include: { nics: true } });
+    if (!net) throw new NotFoundException('Netzwerk nicht gefunden');
+    if (net.nics.length > 0) throw new BadRequestException('Netzwerk wird noch von VMs genutzt');
+    await this.prisma.network.delete({ where: { id } });
+  }
+
+  @Delete('networks/:networkId/ip-pools/:id')
+  @HttpCode(204)
+  @RequirePermissions('network.manage')
+  async deletePool(@Param('networkId') networkId: string, @Param('id') id: string) {
+    const pool = await this.prisma.ipPool.findFirst({ where: { id, networkId } });
+    if (!pool) throw new NotFoundException('IP-Pool nicht gefunden');
+    const inUse = await this.prisma.ipAddress.count({ where: { poolId: id, nicId: { not: null } } });
+    if (inUse > 0) throw new BadRequestException('Pool hat noch zugewiesene IPs');
+    await this.prisma.ipPool.delete({ where: { id } });
   }
 
   @Get('ip-addresses')

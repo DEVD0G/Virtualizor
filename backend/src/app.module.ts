@@ -15,6 +15,7 @@ import { EventsModule } from './events/events.module';
 import { ApiKeysModule } from './apikeys/apikeys.module';
 import { NetworksModule } from './networks/networks.module';
 import { StorageModule } from './storage/storage.module';
+import { BackupsModule } from './backups/backups.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -39,6 +40,7 @@ import { SeedService } from './bootstrap/seed.service';
     ApiKeysModule,
     NetworksModule,
     StorageModule,
+    BackupsModule,
   ],
   controllers: [HealthController],
   providers: [

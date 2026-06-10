@@ -103,6 +103,7 @@ func (s *Server) ListenAndServe() error {
 		return s.virt.SnapshotRevert(n, name)
 	}))
 	mux.HandleFunc("DELETE /v1/vms/{name}/snapshots/{snap}", s.handleDeleteSnapshot)
+	mux.HandleFunc("POST /v1/vms/{name}/backup", s.handleBackupDirect)
 	mux.HandleFunc("POST /v1/console-token", s.handleConsoleToken)
 	mux.HandleFunc("GET /v1/console/ws", s.handleConsoleWs)
 
@@ -247,6 +248,61 @@ func (s *Server) handleDeleteVm(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.store.DeleteSeed(name)
 	writeJSON(w, 200, map[string]string{"status": "deleted"})
+}
+
+// handleBackupDirect schreibt die JSON-Antwort mit den Backup-Metadaten.
+// Registriert als POST /v1/vms/{name}/backup (direkt, nicht via vmAction).
+func (s *Server) handleBackupDirect(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body map[string]any
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body)
+	targetDir, _ := body["targetDir"].(string)
+	if targetDir == "" {
+		targetDir = "/var/lib/vcp/backups"
+	}
+
+	diskPaths, err := s.virt.DiskPaths(name)
+	if err != nil {
+		writeErr(w, 404, err)
+		return
+	}
+	if len(diskPaths) == 0 {
+		writeErr(w, 409, fmt.Errorf("keine Disks gefunden"))
+		return
+	}
+
+	ts := time.Now().UTC().Format("20060102-150405")
+	vmBackupDir := fmt.Sprintf("%s/%s", targetDir, name)
+
+	type backupFile struct {
+		Source string `json:"source"`
+		Path   string `json:"path"`
+		Bytes  int64  `json:"bytes"`
+	}
+	var files []backupFile
+	var totalBytes int64
+
+	for i, src := range diskPaths {
+		filename := fmt.Sprintf("%s-disk%d-%s.qcow2", name, i, ts)
+		outPath, size, err := s.store.BackupVolume(src, vmBackupDir, filename)
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		files = append(files, backupFile{Source: src, Path: outPath, Bytes: size})
+		totalBytes += size
+	}
+
+	writeJSON(w, 200, map[string]any{
+		"timestamp":  ts,
+		"targetDir":  vmBackupDir,
+		"files":      files,
+		"totalBytes": totalBytes,
+	})
 }
 
 func (s *Server) handleDeleteSnapshot(w http.ResponseWriter, r *http.Request) {

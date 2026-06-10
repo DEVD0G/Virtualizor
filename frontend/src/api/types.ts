@@ -121,3 +121,31 @@ export interface ApiKey {
   lastUsedAt: string | null;
   createdAt: string;
 }
+
+export interface Backup {
+  id: string;
+  vmId: string;
+  target: string;
+  sizeBytes: number | null;
+  state: 'running' | 'completed' | 'failed';
+  createdAt: string;
+}
+
+export interface Network {
+  id: string;
+  name: string;
+  mode: 'bridged' | 'nat';
+  bridge: string;
+  vlanTag: number | null;
+  cidr: string | null;
+  ipPools: IpPool[];
+}
+
+export interface IpPool {
+  id: string;
+  networkId: string;
+  cidr: string;
+  gateway: string;
+  dns: string[];
+  _count?: { addresses: number };
+}

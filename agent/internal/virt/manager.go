@@ -249,8 +249,45 @@ func (m *Manager) ensureRunning(dom libvirt.Domain) error {
 	return m.l.DomainCreate(dom)
 }
 
-// VncPort liefert den aktuell von libvirt zugewiesenen TCP-Port des VNC-Servers
-// dieser Domain (aus der Live-XML, wo autoport='yes' zum echten Port aufgelöst ist).
+// DiskPaths gibt die Dateipfade aller Nicht-CDROM-Disks der Domain zurück.
+func (m *Manager) DiskPaths(name string) ([]string, error) {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	type sourceXML struct {
+		File string `xml:"file,attr"`
+	}
+	type diskXML struct {
+		Device string    `xml:"device,attr"`
+		Source sourceXML `xml:"source"`
+	}
+	type devicesXML struct {
+		Disks []diskXML `xml:"disk"`
+	}
+	type domainDoc struct {
+		Devices devicesXML `xml:"devices"`
+	}
+
+	var doc domainDoc
+	if err := xml.Unmarshal([]byte(xmlStr), &doc); err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, d := range doc.Devices.Disks {
+		if d.Device != "cdrom" && d.Source.File != "" {
+			paths = append(paths, d.Source.File)
+		}
+	}
+	return paths, nil
+}
+
+// VncPort gibt den vom QEMU zugewiesenen VNC-TCP-Port der laufenden Domain zurück.
 func (m *Manager) VncPort(name string) (int, error) {
 	dom, err := m.l.DomainLookupByName(name)
 	if err != nil {

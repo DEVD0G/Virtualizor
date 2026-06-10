@@ -10,6 +10,7 @@ import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
 import LoginPage from './pages/LoginPage';
+import NetworksPage from './pages/NetworksPage';
 import NodesPage from './pages/NodesPage';
 import StoragePage from './pages/StoragePage';
 import UsersPage from './pages/UsersPage';
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
         <Route path="/nodes" element={<NodesPage />} />
+        <Route path="/networks" element={<NetworksPage />} />
         <Route path="/storage" element={<StoragePage />} />
         <Route path="/api-keys" element={<ApiKeysPage />} />
         <Route path="/settings" element={<SettingsPage />} />

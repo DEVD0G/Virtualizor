@@ -12,7 +12,8 @@ export type TaskKind =
   | 'vm.restart'
   | 'vm.snapshot'
   | 'vm.snapshot-revert'
-  | 'vm.snapshot-delete';
+  | 'vm.snapshot-delete'
+  | 'vm.backup';
 
 export interface TaskHandler {
   handle(kind: TaskKind, payload: Record<string, any>, onProgress: (p: number) => void): Promise<void>;

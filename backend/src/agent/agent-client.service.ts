@@ -59,6 +59,11 @@ export class AgentClientService {
       `/v1/vms/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshotName)}`);
   }
 
+  backupVm(node: Node, name: string, targetDir?: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/backup`,
+      targetDir ? { targetDir } : {});
+  }
+
   consoleToken(node: Node, name: string) {
     return this.call(node, 'POST', '/v1/console-token', { vmName: name });
   }
