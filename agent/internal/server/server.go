@@ -6,16 +6,23 @@
 package server
 
 import (
+	"bufio"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/devd0g/virtualizor/agent/internal/config"
@@ -24,15 +31,45 @@ import (
 	"github.com/devd0g/virtualizor/agent/internal/virt"
 )
 
+type consoleEntry struct {
+	vmName    string
+	expiresAt time.Time
+}
+
 type Server struct {
-	cfg       *config.Config
-	virt      *virt.Manager
-	store     *storage.Store
-	collector *metrics.Collector
+	cfg           *config.Config
+	virt          *virt.Manager
+	store         *storage.Store
+	collector     *metrics.Collector
+	consoleMu     sync.Mutex
+	consoleTokens map[string]consoleEntry
 }
 
 func New(cfg *config.Config, vm *virt.Manager, store *storage.Store, col *metrics.Collector) *Server {
-	return &Server{cfg: cfg, virt: vm, store: store, collector: col}
+	s := &Server{
+		cfg:           cfg,
+		virt:          vm,
+		store:         store,
+		collector:     col,
+		consoleTokens: make(map[string]consoleEntry),
+	}
+	go s.sweepConsoleTokens()
+	return s
+}
+
+// sweepConsoleTokens entfernt abgelaufene Einträge alle 30 Sekunden.
+func (s *Server) sweepConsoleTokens() {
+	t := time.NewTicker(30 * time.Second)
+	for range t.C {
+		now := time.Now()
+		s.consoleMu.Lock()
+		for tok, e := range s.consoleTokens {
+			if now.After(e.expiresAt) {
+				delete(s.consoleTokens, tok)
+			}
+		}
+		s.consoleMu.Unlock()
+	}
 }
 
 func (s *Server) ListenAndServe() error {
@@ -67,6 +104,7 @@ func (s *Server) ListenAndServe() error {
 	}))
 	mux.HandleFunc("DELETE /v1/vms/{name}/snapshots/{snap}", s.handleDeleteSnapshot)
 	mux.HandleFunc("POST /v1/console-token", s.handleConsoleToken)
+	mux.HandleFunc("GET /v1/console/ws", s.handleConsoleWs)
 
 	srv := &http.Server{
 		Addr:    s.cfg.ListenAddr,
@@ -224,8 +262,7 @@ func (s *Server) handleDeleteSnapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "deleted"})
 }
 
-// handleConsoleToken erzeugt ein kurzlebiges Token für den VNC-Proxy (Phase 1:
-// Token-Erzeugung; der WebSocket-Proxy folgt mit der noVNC-Einbettung).
+// handleConsoleToken erzeugt ein kurzlebiges Token (90s) für den VNC-WebSocket-Proxy.
 func (s *Server) handleConsoleToken(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body)
@@ -235,11 +272,197 @@ func (s *Server) handleConsoleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	buf := make([]byte, 24)
-	_, _ = rand.Read(buf)
+	if _, err := rand.Read(buf); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	token := hex.EncodeToString(buf)
+	s.consoleMu.Lock()
+	s.consoleTokens[token] = consoleEntry{vmName: name, expiresAt: time.Now().Add(90 * time.Second)}
+	s.consoleMu.Unlock()
+
 	writeJSON(w, 200, map[string]any{
-		"token":     hex.EncodeToString(buf),
-		"expiresIn": 60,
+		"token":     token,
+		"expiresIn": 90,
 	})
+}
+
+// handleConsoleWs validiert das Token, ermittelt den VNC-Port und proxied
+// die WebSocket-Verbindung zur lokalen VNC-TCP-Buchse (RFC 6455, binary frames).
+func (s *Server) handleConsoleWs(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		writeErr(w, 400, fmt.Errorf("token fehlt"))
+		return
+	}
+
+	s.consoleMu.Lock()
+	entry, ok := s.consoleTokens[token]
+	if ok && time.Now().Before(entry.expiresAt) {
+		delete(s.consoleTokens, token) // Einmalnutzung
+	} else {
+		ok = false
+	}
+	s.consoleMu.Unlock()
+
+	if !ok {
+		writeErr(w, 403, fmt.Errorf("token ungültig oder abgelaufen"))
+		return
+	}
+
+	vncPort, err := s.virt.VncPort(entry.vmName)
+	if err != nil {
+		writeErr(w, 409, err)
+		return
+	}
+
+	// ─── WebSocket-Handshake (RFC 6455) ───────────────────────────────────────
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		writeErr(w, 400, fmt.Errorf("kein WebSocket-Upgrade"))
+		return
+	}
+	key := r.Header.Get("Sec-WebSocket-Key")
+	if key == "" {
+		writeErr(w, 400, fmt.Errorf("Sec-WebSocket-Key fehlt"))
+		return
+	}
+
+	hj, ok2 := w.(http.Hijacker)
+	if !ok2 {
+		writeErr(w, 500, fmt.Errorf("Hijacker nicht verfügbar"))
+		return
+	}
+	conn, bufrw, err := hj.Hijack()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	accept := wsAcceptKey(key)
+	// Subprotocol "binary" wird von noVNC erwartet
+	_, _ = fmt.Fprintf(bufrw,
+		"HTTP/1.1 101 Switching Protocols\r\n"+
+			"Upgrade: websocket\r\n"+
+			"Connection: Upgrade\r\n"+
+			"Sec-WebSocket-Accept: %s\r\n"+
+			"Sec-WebSocket-Protocol: binary\r\n\r\n",
+		accept,
+	)
+	_ = bufrw.Flush()
+
+	// ─── VNC TCP-Verbindung ───────────────────────────────────────────────────
+	vncConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", vncPort), 5*time.Second)
+	if err != nil {
+		slog.Error("VNC dial", "err", err)
+		return
+	}
+	defer vncConn.Close()
+
+	// ─── Bidirektionale Bridge ────────────────────────────────────────────────
+	// WS → VNC: Frames lesen, demaskieren, als Bytes an VNC senden
+	// VNC → WS: Bytes lesen, als Binary-Frames wrappen, an Client senden
+	done := make(chan struct{}, 2)
+	go func() {
+		defer func() { done <- struct{}{} }()
+		wsBufRd := bufio.NewReader(conn)
+		for {
+			payload, err := wsReadFrame(wsBufRd)
+			if err != nil {
+				return
+			}
+			if _, err := vncConn.Write(payload); err != nil {
+				return
+			}
+		}
+	}()
+	go func() {
+		defer func() { done <- struct{}{} }()
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := vncConn.Read(buf)
+			if err != nil {
+				return
+			}
+			if err := wsWriteFrame(conn, buf[:n]); err != nil {
+				return
+			}
+		}
+	}()
+	<-done
+}
+
+// wsAcceptKey berechnet den Sec-WebSocket-Accept-Wert (RFC 6455 §4.2.2).
+func wsAcceptKey(key string) string {
+	const magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+	h := sha1.New()
+	h.Write([]byte(key + magic))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+// wsReadFrame liest einen einzelnen WebSocket-Frame und gibt die demaskierte
+// Nutzlast zurück (nur Binary/Text-Frames; Ping/Close werden still ignoriert).
+func wsReadFrame(r io.Reader) ([]byte, error) {
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, err
+	}
+	// opcode := header[0] & 0x0f
+	masked := header[1]&0x80 != 0
+	payloadLen := int64(header[1] & 0x7f)
+
+	switch payloadLen {
+	case 126:
+		ext := make([]byte, 2)
+		if _, err := io.ReadFull(r, ext); err != nil {
+			return nil, err
+		}
+		payloadLen = int64(binary.BigEndian.Uint16(ext))
+	case 127:
+		ext := make([]byte, 8)
+		if _, err := io.ReadFull(r, ext); err != nil {
+			return nil, err
+		}
+		payloadLen = int64(binary.BigEndian.Uint64(ext))
+	}
+
+	var maskKey [4]byte
+	if masked {
+		if _, err := io.ReadFull(r, maskKey[:]); err != nil {
+			return nil, err
+		}
+	}
+	payload := make([]byte, payloadLen)
+	if _, err := io.ReadFull(r, payload); err != nil {
+		return nil, err
+	}
+	if masked {
+		for i := range payload {
+			payload[i] ^= maskKey[i%4]
+		}
+	}
+	return payload, nil
+}
+
+// wsWriteFrame schreibt einen Binary-Frame (opcode=2, FIN=1, keine Maskierung).
+func wsWriteFrame(w io.Writer, payload []byte) error {
+	n := len(payload)
+	var header []byte
+	switch {
+	case n <= 125:
+		header = []byte{0x82, byte(n)}
+	case n <= 65535:
+		header = []byte{0x82, 126, byte(n >> 8), byte(n)}
+	default:
+		header = []byte{0x82, 127,
+			0, 0, 0, 0,
+			byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n),
+		}
+	}
+	if _, err := w.Write(header); err != nil {
+		return err
+	}
+	_, err := w.Write(payload)
+	return err
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

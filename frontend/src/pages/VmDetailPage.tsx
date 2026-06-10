@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import StatusBadge from '../components/StatusBadge';
+import VncConsole from '../components/VncConsole';
 
 export default function VmDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,7 @@ export default function VmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [snapName, setSnapName] = useState('');
+  const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
 
   const { data: vm } = useQuery({
     queryKey: ['vms', id],
@@ -34,9 +36,21 @@ export default function VmDetailPage() {
     onSettled: invalidate,
   });
 
+  async function openConsole() {
+    const { token, wsUrl } = await api<{ token: string; wsUrl: string; expiresIn: number }>(
+      `/vms/${vm!.id}/console`,
+    );
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    setConsoleWsUrl(`${proto}://${window.location.host}${wsUrl}?token=${token}`);
+  }
+
   if (!vm) return <div className="text-slate-400">Lade…</div>;
 
   return (
+    <>
+      {consoleWsUrl && (
+        <VncConsole wsUrl={consoleWsUrl} onClose={() => setConsoleWsUrl(null)} />
+      )}
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -44,6 +58,9 @@ export default function VmDetailPage() {
           <StatusBadge status={vm.state} />
         </div>
         <div className="flex gap-2">
+          {can('vm.console') && vm.state === 'running' && (
+            <button className="btn-secondary" onClick={openConsole}>Konsole</button>
+          )}
           {can('vm.power') && vm.state === 'stopped' && (
             <button className="btn-primary" onClick={() => action.mutate({ path: `/vms/${vm.id}/start` })}>Start</button>
           )}
@@ -146,5 +163,6 @@ export default function VmDetailPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

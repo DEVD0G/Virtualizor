@@ -4,6 +4,7 @@ package virt
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"net"
 	"regexp"
@@ -246,6 +247,41 @@ func (m *Manager) ensureRunning(dom libvirt.Domain) error {
 		return nil
 	}
 	return m.l.DomainCreate(dom)
+}
+
+// VncPort liefert den aktuell von libvirt zugewiesenen TCP-Port des VNC-Servers
+// dieser Domain (aus der Live-XML, wo autoport='yes' zum echten Port aufgelöst ist).
+func (m *Manager) VncPort(name string) (int, error) {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return 0, fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, 0)
+	if err != nil {
+		return 0, fmt.Errorf("DomainGetXMLDesc: %w", err)
+	}
+
+	type graphicsXML struct {
+		Type string `xml:"type,attr"`
+		Port int    `xml:"port,attr"`
+	}
+	type devicesXML struct {
+		Graphics []graphicsXML `xml:"graphics"`
+	}
+	type domainXMLDoc struct {
+		Devices devicesXML `xml:"devices"`
+	}
+
+	var doc domainXMLDoc
+	if err := xml.Unmarshal([]byte(xmlStr), &doc); err != nil {
+		return 0, fmt.Errorf("XML parsen: %w", err)
+	}
+	for _, g := range doc.Devices.Graphics {
+		if g.Type == "vnc" && g.Port > 0 {
+			return g.Port, nil
+		}
+	}
+	return 0, fmt.Errorf("kein aktiver VNC-Endpunkt für VM %q", name)
 }
 
 func stateString(s libvirt.DomainState) string {

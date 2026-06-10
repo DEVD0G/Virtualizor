@@ -88,7 +88,18 @@ fi
 log "Baue und starte Container..."
 docker compose up -d --build
 
-log "Warte auf Backend..."
+log "Warte auf Datenbank..."
+for i in $(seq 1 30); do
+  if docker compose exec -T postgres pg_isready -U vcp >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+log "Führe Datenbankmigrationen aus..."
+docker compose exec -T backend npx prisma migrate deploy
+
+log "Warte auf Backend (Health-Check)..."
 for i in $(seq 1 60); do
   if docker compose ps backend --format '{{.Health}}' 2>/dev/null | grep -q healthy; then
     break

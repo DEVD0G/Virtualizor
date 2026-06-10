@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import Redis from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentClientService, VmCreateSpec } from '../agent/agent-client.service';
 import { TasksService, TaskHandler, TaskKind } from '../tasks/tasks.service';
@@ -11,6 +12,11 @@ import { EventsGateway } from '../events/events.gateway';
 import { LicenseService } from '../license/license.service';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { CreateVmDto } from './dto/create-vm.dto';
+
+export interface ConsoleMeta {
+  agentAddress: string;
+  vmName: string;
+}
 
 const vmInclude = {
   node: { select: { id: true, name: true } },
@@ -21,13 +27,18 @@ const vmInclude = {
 
 @Injectable()
 export class VmsService implements TaskHandler, OnModuleInit {
+  private readonly redis: Redis;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly agent: AgentClientService,
     private readonly tasks: TasksService,
     private readonly events: EventsGateway,
     private readonly license: LicenseService,
-  ) {}
+  ) {
+    const url = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
+    this.redis = new Redis({ host: url.hostname, port: parseInt(url.port || '6379', 10) });
+  }
 
   onModuleInit() {
     this.tasks.registerHandler(this);
@@ -172,7 +183,16 @@ export class VmsService implements TaskHandler, OnModuleInit {
   async consoleToken(user: AuthenticatedUser, vmId: string) {
     const vm = await this.get(user, vmId);
     const node = await this.prisma.node.findUniqueOrThrow({ where: { id: vm.nodeId } });
-    return this.agent.consoleToken(node, vm.name);
+    const { token, expiresIn } = await this.agent.consoleToken(node, vm.name);
+    const meta: ConsoleMeta = { agentAddress: node.agentAddress, vmName: vm.name };
+    await this.redis.set(`console:${token}`, JSON.stringify(meta), 'EX', expiresIn + 30);
+    return { token, expiresIn, wsUrl: `/api/v1/vms/${vmId}/console/ws` };
+  }
+
+  async resolveConsoleToken(token: string): Promise<ConsoleMeta | null> {
+    const raw = await this.redis.get(`console:${token}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as ConsoleMeta;
   }
 
   // ─── Task-Handler (BullMQ-Worker) ──────────────────────────────────────────
