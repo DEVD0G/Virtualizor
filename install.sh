@@ -96,8 +96,8 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-log "Führe Datenbankmigrationen aus..."
-docker compose exec -T backend npx prisma migrate deploy
+# Migrationen werden vom Backend-Entrypoint selbst angewendet
+# (inkl. Baseline bestehender Datenbanken) — siehe backend/docker-entrypoint.sh.
 
 log "Warte auf Backend (Health-Check)..."
 for i in $(seq 1 60); do
