@@ -119,6 +119,18 @@ export class AuthService {
     return { ok: true };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await argon2.verify(user.passwordHash, currentPassword))) {
+      throw new UnauthorizedException('Aktuelles Passwort falsch');
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await argon2.hash(newPassword, { type: argon2.argon2id }) },
+    });
+    return { ok: true };
+  }
+
   // ─── Tokens & session ────────────────────────────────────────────────────────
 
   async refresh(refreshToken: string) {

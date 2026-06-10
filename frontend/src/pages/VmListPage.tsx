@@ -94,10 +94,10 @@ export default function VmListPage() {
       <div className="card overflow-x-auto p-0">
         <table className="table-base">
           <thead>
-            <tr><th>Name</th><th>Status</th><th>Node</th><th>IP</th><th>Ressourcen</th><th>Besitzer</th><th></th></tr>
+            <tr><th>Name</th><th>Status</th><th>Node</th><th>IP</th><th>Ressourcen</th><th>Tags</th><th>Besitzer</th><th></th></tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={7} className="text-center text-slate-400">Lade…</td></tr>}
+            {isLoading && <tr><td colSpan={8} className="text-center text-slate-400">Lade…</td></tr>}
             {filtered.map((vm) => (
               <tr key={vm.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                 <td><Link className="font-medium text-brand-500 hover:underline" to={`/vms/${vm.id}`}>{vm.name}</Link></td>
@@ -105,6 +105,13 @@ export default function VmListPage() {
                 <td>{vm.node.name}</td>
                 <td className="font-mono text-xs">{vm.nics[0]?.ips[0]?.address ?? '—'}</td>
                 <td>{vm.vcpus} vCPU · {(vm.memoryMb / 1024).toFixed(1)} GiB</td>
+                <td>
+                  <div className="flex flex-wrap gap-1">
+                    {vm.tags?.map((t) => (
+                      <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{t}</span>
+                    ))}
+                  </div>
+                </td>
                 <td>{vm.owner.name}</td>
                 <td className="text-right">
                   {can('vm.power') && vm.state === 'stopped' && (
@@ -117,7 +124,7 @@ export default function VmListPage() {
               </tr>
             ))}
             {!isLoading && !filtered.length && (
-              <tr><td colSpan={7} className="text-center text-slate-400">
+              <tr><td colSpan={8} className="text-center text-slate-400">
                 {vms?.length ? 'Keine Treffer für den aktuellen Filter' : 'Keine VMs vorhanden'}
               </td></tr>
             )}

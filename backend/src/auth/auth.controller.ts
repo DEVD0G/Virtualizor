@@ -23,6 +23,11 @@ class TotpCodeDto {
   @IsString() @Length(6, 6) code: string;
 }
 
+class ChangePasswordDto {
+  @IsString() currentPassword: string;
+  @IsString() @MinLength(10) newPassword: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -74,5 +79,10 @@ export class AuthController {
   @Delete('totp')
   totpDisable(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
     return this.auth.totpDisable(user.id, dto.code);
+  }
+
+  @Post('change-password')
+  changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
 }

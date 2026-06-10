@@ -17,6 +17,8 @@ export default function VmDetailPage() {
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
   const [showResize, setShowResize] = useState(false);
   const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
+  const [showMeta, setShowMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ description: '', tags: '' });
   const [showClone, setShowClone] = useState(false);
   const [cloneName, setCloneName] = useState('');
   const [showMigrate, setShowMigrate] = useState(false);
@@ -255,6 +257,50 @@ export default function VmDetailPage() {
               }}>
                 Resize anwenden
               </button>
+            </div>
+          )}
+
+          {/* Tags & Description */}
+          {(vm.description || (vm.tags && vm.tags.length > 0) || showMeta) && !showMeta && (
+            <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800 text-sm space-y-2">
+              {vm.description && <p className="text-slate-600 dark:text-slate-400 italic">{vm.description}</p>}
+              {vm.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {vm.tags.map((t) => (
+                    <span key={t} className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {can('vm.manage') && !showMeta && (
+            <button className="mt-3 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              onClick={() => { setMetaForm({ description: vm.description ?? '', tags: vm.tags.join(', ') }); setShowMeta(true); }}>
+              Beschreibung & Tags bearbeiten
+            </button>
+          )}
+          {showMeta && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div>
+                <label className="label">Beschreibung</label>
+                <input className="input" value={metaForm.description}
+                  onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Tags (kommagetrennt)</label>
+                <input className="input" placeholder="web, prod, nginx" value={metaForm.tags}
+                  onChange={(e) => setMetaForm({ ...metaForm, tags: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1" onClick={() => {
+                  const tags = metaForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
+                  action.mutate({ path: `/vms/${vm.id}/meta`, method: 'PATCH', body: { description: metaForm.description || null, tags } });
+                  setShowMeta(false);
+                }}>
+                  Speichern
+                </button>
+                <button className="btn-secondary" onClick={() => setShowMeta(false)}>Abbrechen</button>
+              </div>
             </div>
           )}
         </div>

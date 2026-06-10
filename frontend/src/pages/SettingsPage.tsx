@@ -15,7 +15,61 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Konto-Einstellungen</h1>
+      <PasswordSection />
       <TotpSection totpEnabled={user?.totpEnabled ?? false} />
+    </div>
+  );
+}
+
+function PasswordSection() {
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const change = useMutation({
+    mutationFn: () => api('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword: form.current, newPassword: form.next },
+    }),
+    onSuccess: () => {
+      setForm({ current: '', next: '', confirm: '' });
+      setMsg({ text: 'Passwort geändert.', ok: true });
+      setTimeout(() => setMsg(null), 5000);
+    },
+    onError: (e: any) => setMsg({ text: e.message ?? 'Fehler', ok: false }),
+  });
+
+  const mismatch = form.next !== form.confirm && form.confirm.length > 0;
+  const canSubmit = form.current.length > 0 && form.next.length >= 10 && form.next === form.confirm && !change.isPending;
+
+  return (
+    <div className="card space-y-4">
+      <h2 className="font-semibold">Passwort ändern</h2>
+      {msg && (
+        <div className={`rounded-md border px-3 py-2 text-sm ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
+          {msg.text}
+        </div>
+      )}
+      <div className="space-y-3 max-w-xs">
+        <div>
+          <label className="label">Aktuelles Passwort</label>
+          <input className="input" type="password" value={form.current}
+            onChange={(e) => setForm({ ...form, current: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Neues Passwort (min. 10 Zeichen)</label>
+          <input className="input" type="password" value={form.next}
+            onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Neues Passwort bestätigen</label>
+          <input className={`input ${mismatch ? 'border-red-400 focus:ring-red-400' : ''}`} type="password" value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })} />
+          {mismatch && <p className="mt-1 text-xs text-red-500">Passwörter stimmen nicht überein</p>}
+        </div>
+        <button className="btn-primary" disabled={!canSubmit} onClick={() => change.mutate()}>
+          {change.isPending ? 'Ändere…' : 'Passwort ändern'}
+        </button>
+      </div>
     </div>
   );
 }
