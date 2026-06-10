@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+coverage/
+agent/vcp-agent
+agent/bin/
+.DS_Store
+certs/
+data/
+frontend/.vite/
+backend/prisma/dev.db

@@ -1,0 +1,78 @@
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { IsEmail, IsString, Length, MinLength } from 'class-validator';
+import { AuthService, AuthenticatedUser } from './auth.service';
+import { Public } from './decorators/public.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
+
+class LoginDto {
+  @IsEmail() email: string;
+  @IsString() @MinLength(8) password: string;
+}
+
+class RefreshDto {
+  @IsString() refreshToken: string;
+}
+
+class TotpCompleteDto {
+  @IsString() pendingToken: string;
+  @IsString() @Length(6, 6) code: string;
+}
+
+class TotpCodeDto {
+  @IsString() @Length(6, 6) code: string;
+}
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly auth: AuthService) {}
+
+  @Public()
+  @Throttle({ default: { ttl: 900_000, limit: 5 } })
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.auth.login(dto.email, dto.password);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 900_000, limit: 10 } })
+  @Post('login/totp')
+  loginTotp(@Body() dto: TotpCompleteDto) {
+    return this.auth.loginTotp(dto.pendingToken, dto.code);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Post('refresh')
+  refresh(@Body() dto: RefreshDto) {
+    return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  async logout(@Body() dto: RefreshDto) {
+    await this.auth.logout(dto.refreshToken);
+    return { ok: true };
+  }
+
+  @Get('me')
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return user;
+  }
+
+  // ─── TOTP setup (authenticated) ─────────────────────────────────────────────
+
+  @Post('totp/setup')
+  totpSetup(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.totpSetup(user.id);
+  }
+
+  @Post('totp/confirm')
+  totpConfirm(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpConfirm(user.id, dto.code);
+  }
+
+  @Delete('totp')
+  totpDisable(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpDisable(user.id, dto.code);
+  }
+}

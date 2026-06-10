@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LicenseStatus {
+  active
+  suspended
+  expired
+  revoked
+}
+
+enum LicenseTier {
+  starter
+  pro
+  enterprise
+}
+
+model License {
+  id          String        @id @default(uuid())
+  key         String        @unique // VCP-XXXX-XXXX-XXXX-XXXX
+  keyHash     String        @unique // sha256 of key — used for lookups, key never logged
+  status      LicenseStatus @default(active)
+  tier        LicenseTier   @default(starter)
+  maxNodes    Int           @default(3)
+  maxVms      Int           @default(50)
+  features    String[]      // e.g. ["backups","snapshots","api","vlan"]
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  expiresAt   DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  activations Activation[]
+  validations ValidationLog[]
+
+  @@map("licenses")
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String
+  licenses  License[]
+  createdAt DateTime  @default(now())
+
+  @@map("customers")
+}
+
+model Activation {
+  id              String   @id @default(uuid())
+  licenseId       String
+  license         License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  installId       String
+  fingerprint     String
+  hostname        String
+  activatedAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  revokedAt       DateTime?
+
+  @@unique([licenseId, installId])
+  @@index([fingerprint])
+  @@map("activations")
+}
+
+model ValidationLog {
+  id          String   @id @default(uuid())
+  licenseId   String
+  license     License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  installId   String
+  fingerprint String
+  sourceIp    String
+  nonce       String
+  outcome     String   // success | invalid | expired | rate_limited
+  createdAt   DateTime @default(now())
+
+  @@index([licenseId, createdAt])
+  @@map("validation_logs")
+}
+
+// Rate-limit state (Redis preferred in production; DB for reference impl)
+model RateLimitBucket {
+  key       String   @id // e.g. "validate:ip:1.2.3.4" or "validate:key:sha256:..."
+  count     Int      @default(0)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@map("rate_limit_buckets")
+}

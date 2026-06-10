@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & RBAC ────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  isActive     Boolean  @default(true)
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vms           Vm[]
+  apiKeys       ApiKey[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  isSystem    Boolean          @default(false)
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id    String           @id // z.B. "vm.create"
+  label String
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopes     String[] // Teilmenge der User-Permissions
+  ipAllowlist String[]
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("api_keys")
+}
+
+// ─── Nodes ───────────────────────────────────────────────────────────────────
+
+enum NodeState {
+  joining
+  online
+  offline
+  maintenance
+}
+
+model Node {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  hostname        String
+  agentAddress    String // host:port des Agent-mTLS-Servers
+  certSpkiPin     String // SPKI-SHA256 des Agent-Zertifikats
+  fingerprint     String // Hardware-Fingerprint (für Lizenz-Aktivierung)
+  state           NodeState @default(joining)
+  cpuCores        Int       @default(0)
+  memoryMb        Int       @default(0)
+  cpuOvercommit   Float     @default(4.0)
+  memOvercommit   Float     @default(1.0)
+  cpuUsage        Float     @default(0)
+  memUsedMb       Int       @default(0)
+  lastHeartbeatAt DateTime?
+  agentVersion    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vms          Vm[]
+  storagePools StoragePool[]
+  activations  LicenseActivation[]
+  metricSamples NodeMetricSample[]
+
+  @@map("nodes")
+}
+
+model NodeMetricSample {
+  id         String   @id @default(uuid())
+  nodeId     String
+  node       Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  cpuPercent Float
+  memUsedMb  Int
+  vmsRunning Int      @default(0)
+  sampledAt  DateTime @default(now())
+
+  @@index([nodeId, sampledAt])
+  @@map("node_metric_samples")
+}
+
+model JoinToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  nodeName  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("join_tokens")
+}
+
+// ─── VMs ─────────────────────────────────────────────────────────────────────
+
+enum VmState {
+  provisioning
+  stopped
+  running
+  paused
+  error
+  deleting
+}
+
+model Vm {
+  id        String  @id @default(uuid())
+  name      String  @unique // DNS-safe, auch libvirt-Domainname
+  state     VmState @default(provisioning)
+  vcpus     Int
+  memoryMb  Int
+  nodeId    String
+  node      Node    @relation(fields: [nodeId], references: [id])
+  ownerId   String
+  owner     User    @relation(fields: [ownerId], references: [id])
+  templateId String?
+  template  Template? @relation(fields: [templateId], references: [id])
+  cloudInit Json?
+  errorMsg  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disks            Volume[]
+  nics             Nic[]
+  snapshots        VmSnapshot[]
+  backups          Backup[]
+  firewallRules    FirewallRule[]
+  backupSchedules  BackupSchedule[]
+
+  @@index([ownerId])
+  @@index([nodeId])
+  @@map("vms")
+}
+
+model VmSnapshot {
+  id          String   @id @default(uuid())
+  vmId        String
+  vm          Vm       @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  sizeBytes   BigInt?
+  createdAt   DateTime @default(now())
+
+  @@unique([vmId, name])
+  @@map("vm_snapshots")
+}
+
+// ─── Storage ─────────────────────────────────────────────────────────────────
+
+enum StorageType {
+  dir
+  zfs
+  nfs
+  iscsi
+}
+
+model StoragePool {
+  id        String      @id @default(uuid())
+  name      String
+  type      StorageType
+  nodeId    String
+  node      Node        @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  path      String // Verzeichnis, zpool/dataset, NFS-Mount, …
+  totalGb   Int         @default(0)
+  usedGb    Int         @default(0)
+  isDefault Boolean     @default(false)
+  volumes   Volume[]
+
+  @@unique([nodeId, name])
+  @@map("storage_pools")
+}
+
+model Volume {
+  id            String      @id @default(uuid())
+  name          String
+  sizeGb        Int
+  vmId          String?
+  vm            Vm?         @relation(fields: [vmId], references: [id])
+  storagePoolId String
+  storagePool   StoragePool @relation(fields: [storagePoolId], references: [id])
+  bootOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@map("volumes")
+}
+
+model Iso {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  sourceUrl String
+  sha256    String
+  sizeBytes BigInt?
+  createdAt DateTime @default(now())
+
+  @@map("isos")
+}
+
+model Template {
+  id        String   @id // z.B. "ubuntu-24.04"
+  name      String
+  sourceUrl String // cloud image URL
+  sha256    String
+  osType    String   @default("linux")
+  minDiskGb Int      @default(10)
+  vms       Vm[]
+
+  @@map("templates")
+}
+
+// ─── Networking ──────────────────────────────────────────────────────────────
+
+enum NetworkMode {
+  bridged
+  nat
+}
+
+model Network {
+  id       String      @id @default(uuid())
+  name     String      @unique
+  mode     NetworkMode
+  bridge   String // Host-Bridge-Name (z.B. vmbr0)
+  vlanTag  Int?
+  cidr     String? // für NAT-Netze
+  ipPools  IpPool[]
+  nics     Nic[]
+
+  @@map("networks")
+}
+
+model IpPool {
+  id        String      @id @default(uuid())
+  networkId String
+  network   Network     @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  cidr      String
+  gateway   String
+  dns       String[]
+  addresses IpAddress[]
+
+  @@map("ip_pools")
+}
+
+model IpAddress {
+  id       String  @id @default(uuid())
+  address  String  @unique
+  poolId   String
+  pool     IpPool  @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  nicId    String?
+  nic      Nic?    @relation(fields: [nicId], references: [id])
+  reserved Boolean @default(false)
+
+  @@index([poolId, nicId])
+  @@map("ip_addresses")
+}
+
+model Nic {
+  id        String      @id @default(uuid())
+  vmId      String
+  vm        Vm          @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  networkId String
+  network   Network     @relation(fields: [networkId], references: [id])
+  mac       String      @unique
+  ips       IpAddress[]
+
+  @@map("nics")
+}
+
+enum RuleDirection {
+  in
+  out
+}
+
+enum RuleAction {
+  accept
+  drop
+}
+
+model FirewallRule {
+  id        String        @id @default(uuid())
+  vmId      String
+  vm        Vm            @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  direction RuleDirection
+  action    RuleAction
+  protocol  String // tcp | udp | icmp | any
+  portFrom  Int?
+  portTo    Int?
+  cidr      String        @default("0.0.0.0/0")
+  priority  Int           @default(100)
+
+  @@map("firewall_rules")
+}
+
+// ─── Backups ─────────────────────────────────────────────────────────────────
+
+enum BackupState {
+  running
+  completed
+  failed
+}
+
+model Backup {
+  id        String      @id @default(uuid())
+  vmId      String
+  vm        Vm          @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  target    String // Pfad/URI auf dem Backup-Target
+  sizeBytes BigInt?
+  state     BackupState @default(running)
+  createdAt DateTime    @default(now())
+
+  @@map("backups")
+}
+
+model BackupSchedule {
+  id            String    @id @default(uuid())
+  vmId          String
+  vm            Vm        @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  intervalHours Int
+  targetDir     String?
+  enabled       Boolean   @default(true)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("backup_schedules")
+}
+
+// ─── Tasks ───────────────────────────────────────────────────────────────────
+
+enum TaskState {
+  queued
+  running
+  succeeded
+  failed
+}
+
+model Task {
+  id           String    @id @default(uuid())
+  kind         String // vm.provision, vm.delete, vm.backup, …
+  resourceType String
+  resourceId   String
+  state        TaskState @default(queued)
+  progress     Int       @default(0)
+  error        String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  finishedAt   DateTime?
+
+  @@index([resourceType, resourceId])
+  @@map("tasks")
+}
+
+// ─── License (nur Cache signierter Antworten des EXTERNEN Servers) ───────────
+
+model LicenseCache {
+  id             String   @id @default(uuid())
+  licenseKeyHash String   @unique
+  rawPayload     String // base64 — wird bei jedem Lesen erneut signaturgeprüft
+  signature      String // base64 Ed25519
+  status         String
+  tier           String
+  issuedAt       DateTime
+  expiresAt      DateTime?
+  fetchedAt      DateTime @default(now())
+
+  @@map("licenses_cache")
+}
+
+model LicenseActivation {
+  id              String   @id @default(uuid())
+  nodeId          String   @unique
+  node            Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  activationId    String
+  nodeFingerprint String
+  rawPayload      String
+  signature       String
+  activatedAt     DateTime @default(now())
+
+  @@map("license_activations")
+}
+
+// --- Install & Lock State ---
+
+enum InstallPhase {
+  locked      // fresh install, no license yet
+  activating  // first-boot setup in progress
+  active      // fully licensed
+}
+
+model SystemState {
+  id              String       @id @default("singleton")
+  phase           InstallPhase @default(locked)
+  installId       String       @unique  // uuid generated at install time
+  fingerprint     String       // hardware fingerprint (regenerated if HW changes)
+  licenseKey      String?      // stored after activation (plaintext — encrypted at rest via env secret)
+  activatedAt     DateTime?
+  lastValidatedAt DateTime?
+  updatedAt       DateTime     @updatedAt
+
+  @@map("system_state")
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  apiKeyId     String?
+  action       String // z.B. "vm.create"
+  resourceType String
+  resourceId   String?
+  sourceIp     String?
+  userAgent    String?
+  outcome      String // success | denied | error
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}

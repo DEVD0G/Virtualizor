@@ -1,0 +1,38 @@
+name: vcp-license-server
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-license}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-license}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  server:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - postgres
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # Nginx als TLS-Terminator vor dem License-Server (Produktion)
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/tls:ro
+    depends_on:
+      - server
