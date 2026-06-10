@@ -216,6 +216,7 @@ export interface AiChatMessage {
   actionPlan?: AiActionPlan;
   planId?: string;
   planStatus?: 'pending' | 'executing' | 'done' | 'rejected';
+  streaming?: boolean;
 }
 
 export interface AiExecuteResult {
@@ -225,6 +226,20 @@ export interface AiExecuteResult {
   taskId?: string;
   resourceId?: string;
   error?: string;
+}
+
+export interface DiagnosticIssue {
+  title: string;
+  description: string;
+  severity: 'info' | 'warning' | 'critical';
+  suggestion?: string;
+}
+
+export interface DiagnosticsResult {
+  summary: string;
+  overallStatus: 'ok' | 'warning' | 'critical';
+  issues: DiagnosticIssue[];
+  recommendations: string[];
 }
 
 export interface BackupSchedule {

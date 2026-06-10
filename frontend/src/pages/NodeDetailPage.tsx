@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { MetricSample, NodeDetail, StoragePool } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import Sparkline from '../components/Sparkline';
 import StatusBadge from '../components/StatusBadge';
 
@@ -243,6 +244,8 @@ export default function NodeDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <AiDiagnoseCard resourceType="node" resourceId={node.id} />
 
       {/* VMs on this node */}
       <div className="card">

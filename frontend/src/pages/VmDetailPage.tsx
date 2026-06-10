@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Backup, BackupSchedule, FirewallRule, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import StatusBadge from '../components/StatusBadge';
 import VncConsole from '../components/VncConsole';
 
@@ -318,6 +319,8 @@ export default function VmDetailPage() {
           </div>
         </div>
       )}
+
+      <AiDiagnoseCard resourceType="vm" resourceId={vm.id} />
 
       {can('vm.snapshot') && (
         <div className="card">

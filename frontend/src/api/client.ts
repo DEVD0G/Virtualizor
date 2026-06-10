@@ -62,3 +62,44 @@ export async function api<T = unknown>(
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
+
+/** Stream SSE events from a POST endpoint. Calls onEvent for each parsed JSON data line. */
+export async function apiStream(
+  path: string,
+  body: unknown,
+  onEvent: (event: Record<string, any>) => void,
+): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+    throw new ApiError(res.status, msg ?? `HTTP ${res.status}`);
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() ?? '';
+    for (const part of parts) {
+      for (const line of part.split('\n')) {
+        if (line.startsWith('data: ')) {
+          try { onEvent(JSON.parse(line.slice(6))); } catch { /* skip malformed */ }
+        }
+      }
+    }
+  }
+}

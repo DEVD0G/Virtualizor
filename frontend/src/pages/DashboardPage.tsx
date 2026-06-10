@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Node, Task, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { useUiMode } from '../contexts/UiModeContext';
 import StatusBadge from '../components/StatusBadge';
 
 function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
@@ -39,6 +41,8 @@ const taskStateColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const { can } = useAuth();
+  const { isAssisted } = useUiMode();
+  const [aiInput, setAiInput] = useState('');
   const { data: vms } = useQuery({ queryKey: ['vms'], queryFn: () => api<Vm[]>('/vms') });
   const { data: nodes } = useQuery({
     queryKey: ['nodes'],
@@ -56,9 +60,43 @@ export default function DashboardPage() {
   const running = vms?.filter((v) => v.state === 'running').length ?? 0;
   const online  = nodes?.filter((n) => n.state === 'online').length ?? 0;
 
+  function openAi(text?: string) {
+    window.dispatchEvent(new CustomEvent('vcp:ai:open', { detail: { prompt: text ?? aiInput } }));
+    setAiInput('');
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+
+      {isAssisted && (
+        <div className="card bg-gradient-to-br from-brand-50 to-white dark:from-brand-500/10 dark:to-slate-900 border-brand-200 dark:border-brand-500/30">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">✦</span>
+            <div>
+              <h2 className="font-semibold">Was möchtest du tun?</h2>
+              <p className="text-xs text-slate-500">Beschreibe dein Ziel — der KI-Assistent hilft dir Schritt für Schritt.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder={'z.B. "Erstelle einen neuen Webserver" oder "Warum ist meine VM langsam?"'}
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && openAi()}
+            />
+            <button className="btn-primary" onClick={() => openAi()}>Fragen</button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {['Neuen Server erstellen', 'Ressourcenauslastung prüfen', 'Backup einrichten'].map((s) => (
+              <button key={s} onClick={() => openAi(s)} className="rounded-full border border-brand-200 px-3 py-1 text-xs text-brand-600 hover:bg-brand-100 dark:border-brand-500/40 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors">
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="VMs gesamt" value={vms?.length ?? '—'} />

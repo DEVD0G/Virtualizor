@@ -36,3 +36,23 @@ export interface ExecuteResult {
   resourceId?: string;
   error?: string;
 }
+
+export type StreamEvent =
+  | { type: 'text'; text: string }
+  | { type: 'plan'; plan: ActionPlan; planId: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string };
+
+export interface DiagnosticIssue {
+  title: string;
+  description: string;
+  severity: 'info' | 'warning' | 'critical';
+  suggestion?: string;
+}
+
+export interface DiagnosticsResult {
+  summary: string;
+  overallStatus: 'ok' | 'warning' | 'critical';
+  issues: DiagnosticIssue[];
+  recommendations: string[];
+}

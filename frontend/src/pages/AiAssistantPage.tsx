@@ -1,15 +1,15 @@
 import { useRef, useState } from 'react';
-import { api } from '../api/client';
+import { api, apiStream } from '../api/client';
 import { AiChatMessage, AiExecuteResult } from '../api/types';
 import ActionPlanCard from '../components/ActionPlanCard';
 
 const QUICK_PROMPTS = [
   { label: 'Cluster-Überblick', text: 'Gib mir einen vollständigen Überblick über den aktuellen Cluster-Status.' },
-  { label: 'VM erstellen', text: 'Hilf mir eine neue VM zu erstellen.' },
-  { label: 'Hohe Auslastung', text: 'Analysiere die Ressourcenauslastung und gib Empfehlungen.' },
-  { label: 'Netzwerk erklärt', text: 'Erkläre mir den Unterschied zwischen Bridge und NAT-Netzwerken.' },
-  { label: 'Backup planen', text: 'Wie richte ich automatische Backups für meine VMs ein?' },
-  { label: 'Snapshot vs Backup', text: 'Was ist der Unterschied zwischen einem Snapshot und einem Backup?' },
+  { label: 'Neue VM erstellen', text: 'Hilf mir eine neue VM zu erstellen.' },
+  { label: 'Ressourcen analysieren', text: 'Analysiere die Ressourcenauslastung und gib Optimierungsempfehlungen.' },
+  { label: 'Netzwerk erklärt', text: 'Erkläre mir den Unterschied zwischen Bridge und NAT-Netzwerken einfach verständlich.' },
+  { label: 'Backup-Strategie', text: 'Wie richte ich eine gute Backup-Strategie für meine VMs ein?' },
+  { label: 'Snapshot vs Backup', text: 'Was ist der Unterschied zwischen einem Snapshot und einem Backup, und wann nutze ich was?' },
 ];
 
 function Message({
@@ -22,17 +22,17 @@ function Message({
   onReject: (planId: string) => void;
 }) {
   const isUser = msg.role === 'user';
-
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${isUser ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400' : 'bg-brand-500 text-white'}`}>
         {isUser ? 'Du' : 'V'}
       </div>
-      <div className={`max-w-2xl ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
+      <div className={`max-w-2xl flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
         <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-brand-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'}`}>
           {msg.content.split('\n').map((line, i, arr) => (
             <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
           ))}
+          {(msg as any).streaming && <span className="inline-block w-1.5 h-3.5 ml-1 bg-current animate-pulse rounded-sm" />}
         </div>
         {msg.actionPlan && msg.planId && (
           <ActionPlanCard
@@ -70,29 +70,32 @@ export default function AiAssistantPage() {
     setLoading(true);
     scrollToBottom();
 
-    try {
-      const history = nextMessages.map((m) => ({ role: m.role, content: m.content }));
-      const resp = await api<{ message: string; actionPlan?: any; planId?: string }>('/ai/chat', {
-        method: 'POST',
-        body: { messages: history },
-      });
+    const msgId = crypto.randomUUID();
+    let accText = '';
+    setMessages((prev) => [...prev, { id: msgId, role: 'assistant', content: '', streaming: true } as any]);
 
-      const assistantMsg: AiChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: resp.message,
-        actionPlan: resp.actionPlan,
-        planId: resp.planId,
-        planStatus: resp.actionPlan ? 'pending' : undefined,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+    try {
+      await apiStream(
+        '/ai/chat/stream',
+        { messages: nextMessages.map((m) => ({ role: m.role, content: m.content })) },
+        (event) => {
+          if (event.type === 'text') {
+            accText += event.text;
+            setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, content: accText, streaming: true } : m));
+            scrollToBottom();
+          } else if (event.type === 'plan') {
+            setMessages((prev) => prev.map((m) =>
+              m.id === msgId ? { ...m, actionPlan: event.plan, planId: event.planId, planStatus: 'pending' } : m,
+            ));
+          } else if (event.type === 'done') {
+            setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, streaming: false } : m));
+          } else if (event.type === 'error') {
+            setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, content: `Fehler: ${event.message}`, streaming: false } : m));
+          }
+        },
+      );
     } catch (err: any) {
-      const errMsg: AiChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Fehler: ${err.message ?? 'Anfrage fehlgeschlagen'}`,
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, content: `Fehler: ${err.message}`, streaming: false } : m));
     } finally {
       setLoading(false);
       scrollToBottom();
@@ -100,51 +103,29 @@ export default function AiAssistantPage() {
   }
 
   async function confirmPlan(planId: string) {
-    setMessages((prev) =>
-      prev.map((m) => (m.planId === planId ? { ...m, planStatus: 'executing' } : m)),
-    );
+    setMessages((prev) => prev.map((m) => m.planId === planId ? { ...m, planStatus: 'executing' } : m));
     try {
-      const results: AiExecuteResult[] = await api('/ai/execute', {
-        method: 'POST',
-        body: { planId },
-      });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.planId === planId ? { ...m, planStatus: 'done', __results: results } as any : m,
-        ),
-      );
-      const allOk = results.every((r) => r.success);
-      const summary: AiChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: allOk
-          ? `✓ Plan erfolgreich ausgeführt (${results.length} Schritt${results.length !== 1 ? 'e' : ''}).`
-          : `Plan teilweise ausgeführt. ${results.filter((r) => !r.success).length} Fehler.`,
-      };
-      setMessages((prev) => [...prev, summary]);
+      const results: AiExecuteResult[] = await api('/ai/execute', { method: 'POST', body: { planId } });
+      setMessages((prev) => prev.map((m) => m.planId === planId ? { ...m, planStatus: 'done', __results: results } as any : m));
+      const ok = results.every((r) => r.success);
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), role: 'assistant',
+        content: ok ? `✓ Alle ${results.length} Schritte erfolgreich ausgeführt.` : `${results.filter((r) => !r.success).length} Fehler bei der Ausführung.`,
+      }]);
     } catch (err: any) {
-      setMessages((prev) =>
-        prev.map((m) => (m.planId === planId ? { ...m, planStatus: 'done' } : m)),
-      );
-      const errMsg: AiChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Ausführung fehlgeschlagen: ${err.message}`,
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      setMessages((prev) => prev.map((m) => m.planId === planId ? { ...m, planStatus: 'done' } : m));
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: `Ausführung fehlgeschlagen: ${err.message}` }]);
     }
     scrollToBottom();
   }
 
   function rejectPlan(planId: string) {
-    setMessages((prev) =>
-      prev.map((m) => (m.planId === planId ? { ...m, planStatus: 'rejected' } : m)),
-    );
+    setMessages((prev) => prev.map((m) => m.planId === planId ? { ...m, planStatus: 'rejected' } : m));
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)]">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
+      <div className="mb-4 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-2xl font-semibold">KI-Infrastruktur-Assistent</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -152,23 +133,15 @@ export default function AiAssistantPage() {
           </p>
         </div>
         {messages.length > 0 && (
-          <button
-            className="btn-secondary text-sm"
-            onClick={() => setMessages([])}
-          >
-            Neues Gespräch
-          </button>
+          <button className="btn-secondary text-sm" onClick={() => setMessages([])}>Neues Gespräch</button>
         )}
       </div>
 
       {messages.length === 0 && (
-        <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 flex-shrink-0">
           {QUICK_PROMPTS.map((p) => (
-            <button
-              key={p.label}
-              onClick={() => send(p.text)}
-              className="card text-left hover:border-brand-300 hover:bg-brand-50/50 dark:hover:bg-brand-500/5 dark:hover:border-brand-500/40 transition-colors cursor-pointer"
-            >
+            <button key={p.label} onClick={() => send(p.text)}
+              className="card text-left hover:border-brand-300 hover:bg-brand-50/50 dark:hover:bg-brand-500/5 dark:hover:border-brand-500/40 transition-colors cursor-pointer">
               <div className="text-sm font-medium">{p.label}</div>
               <div className="text-xs text-slate-400 mt-1 line-clamp-2">{p.text}</div>
             </button>
@@ -178,52 +151,22 @@ export default function AiAssistantPage() {
 
       <div className="flex-1 overflow-y-auto space-y-5 pr-1">
         {messages.map((msg) => (
-          <Message
-            key={msg.id}
-            msg={msg}
-            onConfirm={confirmPlan}
-            onReject={rejectPlan}
-          />
+          <Message key={msg.id} msg={msg} onConfirm={confirmPlan} onReject={rejectPlan} />
         ))}
-        {loading && (
-          <div className="flex gap-3">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-white">V</div>
-            <div className="rounded-2xl rounded-tl-sm bg-white border border-slate-200 px-4 py-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-              <div className="flex gap-1 py-1">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-2 w-2 rounded-full bg-brand-400 animate-bounce"
-                    style={{ animationDelay: `${i * 150}ms` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 flex gap-3 flex-shrink-0">
         <textarea
           className="input flex-1 resize-none"
           rows={2}
-          placeholder="Frage stellen oder Infrastrukturänderung beschreiben… (Enter zum Senden, Shift+Enter für neue Zeile)"
+          placeholder="Frage stellen oder Infrastrukturänderung beschreiben… (Enter = Senden, Shift+Enter = Neue Zeile)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
           disabled={loading}
         />
-        <button
-          className="btn-primary self-end px-5"
-          onClick={() => send()}
-          disabled={loading || !input.trim()}
-        >
+        <button className="btn-primary self-end px-5" onClick={() => send()} disabled={loading || !input.trim()}>
           Senden
         </button>
       </div>

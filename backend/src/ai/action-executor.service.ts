@@ -15,81 +15,93 @@ export class ActionExecutorService {
 
   async execute(plan: ActionPlan, user: AuthenticatedUser): Promise<ExecuteResult[]> {
     const results: ExecuteResult[] = [];
-
     for (let i = 0; i < plan.steps.length; i++) {
       const step = plan.steps[i];
       try {
         const outcome = await this.executeStep(step, user);
         results.push({ stepIndex: i, capability: step.capability, success: true, ...outcome });
-        this.logger.log(`Plan-Schritt ${i + 1}/${plan.steps.length} (${step.capability}) erfolgreich`);
+        this.logger.log(`Schritt ${i + 1}/${plan.steps.length} (${step.capability}) OK`);
       } catch (err: any) {
-        this.logger.warn(`Plan-Schritt ${i + 1} (${step.capability}) fehlgeschlagen: ${err.message}`);
+        this.logger.warn(`Schritt ${i + 1} (${step.capability}) fehlgeschlagen: ${err.message}`);
         results.push({ stepIndex: i, capability: step.capability, success: false, error: err.message });
-        break; // Stoppe bei erstem Fehler — bereits ausgeführte Schritte bleiben
+        break; // Stoppe bei erstem Fehler
       }
     }
-
     return results;
   }
 
   private async executeStep(step: ActionStep, user: AuthenticatedUser): Promise<Partial<ExecuteResult>> {
+    const p = step.params;
+
     switch (step.capability) {
+      // ─── VM lifecycle ──────────────────────────────────────────────────────
       case 'vm.create': {
-        const result = await this.vms.create(user, step.params as any);
+        const result = await this.vms.create(user, p as any);
         return { taskId: result.taskId };
       }
-
       case 'vm.start': {
-        const result = await this.vms.power(user, step.params.vmId, 'start');
+        const result = await this.vms.power(user, p.vmId, 'start');
         return { taskId: result.taskId };
       }
-
       case 'vm.stop': {
-        const result = await this.vms.power(user, step.params.vmId, 'stop', step.params.force ?? false);
+        const result = await this.vms.power(user, p.vmId, 'stop', p.force ?? false);
         return { taskId: result.taskId };
       }
-
       case 'vm.restart': {
-        const result = await this.vms.power(user, step.params.vmId, 'restart');
+        const result = await this.vms.power(user, p.vmId, 'restart');
         return { taskId: result.taskId };
       }
-
       case 'vm.delete': {
-        const result = await this.vms.remove(user, step.params.vmId);
+        const result = await this.vms.remove(user, p.vmId);
+        return { taskId: result.taskId };
+      }
+      case 'vm.resize': {
+        const result = await this.vms.resize(user, p.vmId, { vcpus: p.vcpus, memoryMb: p.memoryMb });
         return { taskId: result.taskId };
       }
 
+      // ─── Snapshots ─────────────────────────────────────────────────────────
       case 'vm.snapshot.create': {
-        const result = await this.vms.createSnapshot(
-          user,
-          step.params.vmId,
-          step.params.snapshotName,
-          step.params.description,
-        );
+        const result = await this.vms.createSnapshot(user, p.vmId, p.snapshotName, p.description);
         return { taskId: result.taskId, resourceId: result.snapshot.id };
       }
+      case 'vm.snapshot.revert': {
+        const result = await this.vms.revertSnapshot(user, p.vmId, p.snapshotId);
+        return { taskId: result.taskId };
+      }
+      case 'vm.snapshot.delete': {
+        const result = await this.vms.deleteSnapshot(user, p.vmId, p.snapshotId);
+        return { taskId: result.taskId };
+      }
 
+      // ─── Backups ────────────────────────────────────────────────────────────
       case 'vm.backup.create': {
         const backup = await this.prisma.backup.create({
-          data: {
-            vmId: step.params.vmId,
-            target: step.params.targetDir ?? '/var/lib/vcp/backups',
-            state: 'running',
-          },
+          data: { vmId: p.vmId, target: p.targetDir ?? '/var/lib/vcp/backups', state: 'running' },
         });
         return { resourceId: backup.id };
       }
 
-      case 'network.create': {
-        const network = await this.prisma.network.create({
-          data: {
-            name: step.params.name,
-            mode: step.params.mode,
-            bridge: step.params.bridge,
-            vlanTag: step.params.vlanTag ?? null,
-          },
+      // ─── Firewall ───────────────────────────────────────────────────────────
+      case 'firewall.rule.add': {
+        const rule = await this.vms.createFirewallRule(user, p.vmId, {
+          direction: p.direction,
+          action: p.action,
+          protocol: p.protocol,
+          portFrom: p.portFrom,
+          portTo: p.portTo,
+          cidr: p.cidr,
+          priority: p.priority,
         });
-        return { resourceId: network.id };
+        return { resourceId: rule.id };
+      }
+
+      // ─── Networks ───────────────────────────────────────────────────────────
+      case 'network.create': {
+        const net = await this.prisma.network.create({
+          data: { name: p.name, mode: p.mode, bridge: p.bridge, vlanTag: p.vlanTag ?? null },
+        });
+        return { resourceId: net.id };
       }
 
       default:

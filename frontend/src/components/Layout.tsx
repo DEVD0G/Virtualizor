@@ -4,6 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { LicenseState } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { useUiMode } from '../contexts/UiModeContext';
 import { useLiveEvents } from '../hooks/useSocket';
 import AiPanel from './AiPanel';
 
@@ -24,6 +25,7 @@ const nav = [
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout, can } = useAuth();
   const navigate = useNavigate();
+  const { isAssisted, setMode } = useUiMode();
   useLiveEvents();
 
   const [dark, setDark] = useState(() => localStorage.getItem('vcp_theme') !== 'light');
@@ -44,7 +46,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       <aside className="flex w-60 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 px-5 py-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 font-bold text-white">V</div>
-          <span className="text-lg font-semibold tracking-tight">VCP</span>
+          <div>
+            <span className="text-lg font-semibold tracking-tight">VCP</span>
+            {isAssisted && <div className="text-[10px] font-medium text-brand-500 leading-none">Einfacher Modus</div>}
+          </div>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {nav
@@ -72,16 +77,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="text-slate-500 dark:text-slate-400">{user?.role}</div>
           </div>
           <div className="flex gap-2">
-            <NavLink
-              to="/settings"
-              className="btn-secondary flex-1 text-center"
-            >
-              Einstellungen
-            </NavLink>
+            <NavLink to="/settings" className="btn-secondary flex-1 text-center">Einstellungen</NavLink>
             <button className="btn-secondary" onClick={() => setDark(!dark)} title={dark ? 'Hell' : 'Dunkel'}>
               {dark ? '☀' : '☾'}
             </button>
           </div>
+          <button
+            className={`mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${isAssisted ? 'bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400' : 'border border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+            onClick={() => setMode(isAssisted ? 'professional' : 'assisted')}
+          >
+            {isAssisted ? '⚙ Profi-Modus' : '✦ Einfacher Modus'}
+          </button>
           <button
             className="btn-secondary w-full mt-2"
             onClick={() => { logout(); navigate('/login'); }}
