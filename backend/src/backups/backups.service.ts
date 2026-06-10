@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.service';
+import { AgentClientService } from '../agent/agent-client.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from '../tasks/tasks.service';
 
@@ -8,6 +9,7 @@ export class BackupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tasks: TasksService,
+    private readonly agent: AgentClientService,
   ) {}
 
   async list(user: AuthenticatedUser, vmId: string) {
@@ -29,6 +31,19 @@ export class BackupsService {
       user.id,
     );
     return { backup, taskId: task.id };
+  }
+
+  async restore(user: AuthenticatedUser, vmId: string, backupId: string) {
+    const vm = await this.requireVmAccess(user, vmId);
+    const backup = await this.prisma.backup.findFirst({ where: { id: backupId, vmId } });
+    if (!backup) throw new NotFoundException('Backup nicht gefunden');
+    const node = await this.prisma.node.findUniqueOrThrow({ where: { id: vm.nodeId } });
+    const task = await this.tasks.enqueue(
+      'vm.restore', 'vm', vmId,
+      { vmId, backupId, backupPath: backup.target },
+      user.id,
+    );
+    return { taskId: task.id };
   }
 
   async remove(user: AuthenticatedUser, vmId: string, backupId: string) {

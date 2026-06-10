@@ -454,6 +454,15 @@ export class VmsService implements TaskHandler, OnModuleInit {
         });
         break;
       }
+      case 'vm.restore': {
+        onProgress(5);
+        await this.agent.restoreVm(node, vm.name, payload.backupPath);
+        await this.prisma.backup.update({
+          where: { id: payload.backupId },
+          data: { state: 'completed' },
+        });
+        break;
+      }
       case 'vm.resize':
         await this.agent.resizeVm(node, vm.name, payload.vcpus, payload.memoryMb);
         break;

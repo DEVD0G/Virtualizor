@@ -155,6 +155,22 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({ where: { tokenHash: this.hash(refreshToken) } });
   }
 
+  async listSessions(userId: string) {
+    return this.prisma.refreshToken.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { id: sessionId, userId } });
+  }
+
+  async revokeAllSessions(userId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
   async resolveUser(userId: string): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

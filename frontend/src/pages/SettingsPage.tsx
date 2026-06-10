@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -18,6 +18,7 @@ export default function SettingsPage() {
       <ProfileSection />
       <PasswordSection />
       <TotpSection totpEnabled={user?.totpEnabled ?? false} />
+      <SessionsSection />
     </div>
   );
 }
@@ -161,6 +162,7 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
     setTimeout(() => setCopiedSecret(false), 2000);
   }
 
+
   return (
     <div className="card space-y-4">
       <div className="flex items-center justify-between">
@@ -278,6 +280,79 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
             Abbrechen
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+interface Session { id: string; createdAt: string; expiresAt: string }
+
+function SessionsSection() {
+  const qc = useQueryClient();
+
+  const { data: sessions, isLoading } = useQuery({
+    queryKey: ['auth', 'sessions'],
+    queryFn: () => api<Session[]>('/auth/sessions'),
+  });
+
+  const revoke = useMutation({
+    mutationFn: (id: string) => api(`/auth/sessions/${id}`, { method: 'DELETE' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  });
+
+  const revokeAll = useMutation({
+    mutationFn: () => api('/auth/sessions', { method: 'DELETE' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  });
+
+  return (
+    <div className="card space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Aktive Sitzungen</h2>
+        {sessions && sessions.length > 0 && (
+          <button
+            className="btn-danger text-xs"
+            disabled={revokeAll.isPending}
+            onClick={() => {
+              if (confirm('Alle anderen Sitzungen widerrufen?')) revokeAll.mutate();
+            }}
+          >
+            Alle widerrufen
+          </button>
+        )}
+      </div>
+      <p className="text-sm text-slate-500">Aktive Refresh-Token deiner Sitzungen.</p>
+      {isLoading && <p className="text-sm text-slate-400">Lade…</p>}
+      {sessions && sessions.length === 0 && (
+        <p className="text-sm text-slate-400">Keine aktiven Sitzungen.</p>
+      )}
+      {sessions && sessions.length > 0 && (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th className="py-2 text-left font-medium text-slate-600 dark:text-slate-400">Erstellt</th>
+              <th className="py-2 text-left font-medium text-slate-600 dark:text-slate-400">Läuft ab</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {sessions.map((s) => (
+              <tr key={s.id}>
+                <td className="py-2 text-xs">{new Date(s.createdAt).toLocaleString()}</td>
+                <td className="py-2 text-xs text-slate-500">{new Date(s.expiresAt).toLocaleString()}</td>
+                <td className="py-2 text-right">
+                  <button
+                    className="btn-danger text-xs"
+                    disabled={revoke.isPending}
+                    onClick={() => revoke.mutate(s.id)}
+                  >
+                    Widerrufen
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

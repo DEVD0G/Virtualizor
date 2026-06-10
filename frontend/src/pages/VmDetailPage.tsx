@@ -369,7 +369,18 @@ export default function VmDetailPage() {
                       : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
                     }`}>{b.state}</span>
                   </td>
-                  <td className="text-right">
+                  <td className="text-right space-x-1">
+                    {can('backup.manage') && b.state === 'completed' && (
+                      <button className="btn-secondary text-xs"
+                        disabled={action.isPending}
+                        onClick={() => {
+                          if (confirm('VM aus diesem Backup wiederherstellen? Die VM wird dabei gestoppt.')) {
+                            action.mutate({ path: `/vms/${vm.id}/backups/${b.id}/restore` });
+                          }
+                        }}>
+                        Wiederherstellen
+                      </button>
+                    )}
                     {can('backup.manage') && (
                       <button className="btn-danger text-xs"
                         onClick={() => action.mutate({ path: `/vms/${vm.id}/backups/${b.id}`, method: 'DELETE' })}>

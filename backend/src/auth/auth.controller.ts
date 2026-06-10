@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, Length, MinLength } from 'class-validator';
 import { AuthService, AuthenticatedUser } from './auth.service';
@@ -93,5 +93,24 @@ export class AuthController {
   @Patch('me')
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateProfileDto) {
     return this.auth.updateProfile(user.id, dto.name);
+  }
+
+  // ─── Session management ──────────────────────────────────────────────────────
+
+  @Get('sessions')
+  listSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.listSessions(user.id);
+  }
+
+  @Delete('sessions')
+  @HttpCode(204)
+  revokeAllSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.revokeAllSessions(user.id);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(204)
+  revokeSession(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.auth.revokeSession(user.id, id);
   }
 }

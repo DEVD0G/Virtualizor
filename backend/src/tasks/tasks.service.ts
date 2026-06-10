@@ -16,6 +16,7 @@ export type TaskKind =
   | 'vm.snapshot-revert'
   | 'vm.snapshot-delete'
   | 'vm.backup'
+  | 'vm.restore'
   | 'vm.resize'
   | 'vm.disk-resize'
   | 'ct.provision'

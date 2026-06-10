@@ -108,6 +108,10 @@ export class AgentClientService {
       targetDir ? { targetDir } : {});
   }
 
+  restoreVm(node: Node, name: string, backupPath: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/restore`, { backupPath });
+  }
+
   consoleToken(node: Node, name: string) {
     return this.call(node, 'POST', '/v1/console-token', { vmName: name });
   }
