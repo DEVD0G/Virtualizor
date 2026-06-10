@@ -318,6 +318,11 @@ export interface Container {
   owner: { id: string; email: string; name: string };
 }
 
+export interface Permission {
+  id: string;
+  description: string | null;
+}
+
 export interface PortForwardRule {
   id: string;
   networkId: string;

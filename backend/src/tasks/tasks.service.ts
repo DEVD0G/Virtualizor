@@ -22,6 +22,7 @@ export type TaskKind =
   | 'ct.provision'
   | 'ct.start'
   | 'ct.stop'
+  | 'ct.restart'
   | 'ct.delete';
 
 export interface TaskHandler {

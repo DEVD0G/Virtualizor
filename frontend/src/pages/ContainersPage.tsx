@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Container, Node } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -185,7 +186,7 @@ export default function ContainersPage() {
             )}
             {containers?.map((ct) => (
               <tr key={ct.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td className="font-medium">{ct.name}</td>
+                <td><Link className="font-medium text-brand-500 hover:underline" to={`/containers/${ct.id}`}>{ct.name}</Link></td>
                 <td><StatusBadge status={ct.state} /></td>
                 <td>{ct.node.name}</td>
                 <td className="text-xs">{ct.osTemplate}</td>

@@ -10,6 +10,7 @@ import WebhooksPage from './pages/WebhooksPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
 import TasksPage from './pages/TasksPage';
+import ContainerDetailPage from './pages/ContainerDetailPage';
 import ContainersPage from './pages/ContainersPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
         <Route path="/containers" element={<ContainersPage />} />
+        <Route path="/containers/:id" element={<ContainerDetailPage />} />
         <Route path="/nodes" element={<NodesPage />} />
         <Route path="/nodes/:id" element={<NodeDetailPage />} />
         <Route path="/networks" element={<NetworksPage />} />

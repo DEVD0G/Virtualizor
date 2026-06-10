@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { IsArray, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
-import { ContainersService, CreateContainerDto } from './containers.service';
+import { ContainersService } from './containers.service';
 
 class CreateContainerBodyDto {
   @Matches(/^[a-z0-9][-a-z0-9]{2,62}$/, { message: 'Name: 3-63 Zeichen, a-z 0-9 Bindestrich' })
@@ -17,6 +17,13 @@ class CreateContainerBodyDto {
   @IsOptional() @IsString() ipAddress?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
   @IsOptional() @IsString() description?: string;
+}
+
+class UpdateContainerDto {
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(128) vcpus?: number;
+  @IsOptional() @IsInt() @Min(128) @Max(1048576) memoryMb?: number;
 }
 
 @Controller('containers')
@@ -41,6 +48,12 @@ export class ContainersController {
     return this.svc.get(user, id);
   }
 
+  @Patch(':id')
+  @RequirePermissions('vm.manage')
+  updateMeta(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateContainerDto) {
+    return this.svc.updateMeta(user, id, dto);
+  }
+
   @Post(':id/start')
   @RequirePermissions('vm.manage')
   start(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
@@ -51,6 +64,12 @@ export class ContainersController {
   @RequirePermissions('vm.manage')
   stop(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.power(user, id, 'stop');
+  }
+
+  @Post(':id/restart')
+  @RequirePermissions('vm.manage')
+  restart(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.svc.power(user, id, 'restart');
   }
 
   @Delete(':id')

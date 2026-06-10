@@ -74,6 +74,10 @@ export class AgentClientService {
     return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/stop`);
   }
 
+  restartContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/restart`);
+  }
+
   deleteContainer(node: Node, name: string) {
     return this.call(node, 'DELETE', `/v1/containers/${encodeURIComponent(name)}`);
   }

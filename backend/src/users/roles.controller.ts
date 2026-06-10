@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ArrayNotEmpty, IsArray, IsOptional, IsString } from 'class-validator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,6 +7,12 @@ class CreateRoleDto {
   @IsString() name: string;
   @IsOptional() @IsString() description?: string;
   @IsArray() @ArrayNotEmpty() @IsString({ each: true }) permissions: string[];
+}
+
+class UpdateRoleDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) permissions?: string[];
 }
 
 @Controller()
@@ -34,6 +40,33 @@ export class RolesController {
         description: dto.description,
         permissions: { create: dto.permissions.map((permissionId) => ({ permissionId })) },
       },
+    });
+  }
+
+  @Patch('roles/:id')
+  async updateRole(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new BadRequestException('Rolle nicht gefunden');
+    if (role.isSystem) throw new BadRequestException('Systemrollen können nicht bearbeitet werden');
+
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.permissions !== undefined) {
+        await tx.rolePermission.deleteMany({ where: { roleId: id } });
+        if (dto.permissions.length > 0) {
+          await tx.rolePermission.createMany({
+            data: dto.permissions.map((permissionId) => ({ roleId: id, permissionId })),
+            skipDuplicates: true,
+          });
+        }
+      }
+      return tx.role.update({
+        where: { id },
+        data: {
+          ...(dto.name ? { name: dto.name } : {}),
+          ...(dto.description !== undefined ? { description: dto.description } : {}),
+        },
+        include: { permissions: { select: { permissionId: true } }, _count: { select: { users: true } } },
+      });
     });
   }
 

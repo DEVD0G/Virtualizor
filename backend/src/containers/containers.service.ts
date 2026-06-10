@@ -92,11 +92,16 @@ export class ContainersService implements TaskHandler, OnModuleInit {
     return { container: ct, taskId: task.id };
   }
 
-  async power(user: AuthenticatedUser, id: string, action: 'start' | 'stop') {
+  async power(user: AuthenticatedUser, id: string, action: 'start' | 'stop' | 'restart') {
     const ct = await this.get(user, id);
     const kind = `ct.${action}` as TaskKind;
     const task = await this.tasks.enqueue(kind, 'container', ct.id, { ctId: ct.id }, user.id);
     return { taskId: task.id };
+  }
+
+  async updateMeta(user: AuthenticatedUser, id: string, data: { tags?: string[]; description?: string | null; vcpus?: number; memoryMb?: number }) {
+    await this.get(user, id);
+    return this.prisma.container.update({ where: { id }, data });
   }
 
   async remove(user: AuthenticatedUser, id: string) {
@@ -138,6 +143,12 @@ export class ContainersService implements TaskHandler, OnModuleInit {
         await this.agent.stopContainer(node, ct.name);
         await this.prisma.container.update({ where: { id: ct.id }, data: { state: 'stopped' } });
         this.events.emit('container.state', { name: ct.name, state: 'stopped' });
+        break;
+
+      case 'ct.restart':
+        await this.agent.restartContainer(node, ct.name);
+        await this.prisma.container.update({ where: { id: ct.id }, data: { state: 'running' } });
+        this.events.emit('container.state', { name: ct.name, state: 'running' });
         break;
 
       case 'ct.delete':
