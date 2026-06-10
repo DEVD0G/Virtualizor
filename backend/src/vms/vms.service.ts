@@ -146,6 +146,31 @@ export class VmsService implements TaskHandler, OnModuleInit {
     return { taskId: task.id };
   }
 
+  // ─── Resize ────────────────────────────────────────────────────────────────
+
+  async resize(user: AuthenticatedUser, id: string, dto: { vcpus?: number; memoryMb?: number }) {
+    const vm = await this.get(user, id);
+    if (vm.state !== 'stopped') throw new BadRequestException('VM muss gestoppt sein');
+    const vcpus = dto.vcpus ?? vm.vcpus;
+    const memoryMb = dto.memoryMb ?? vm.memoryMb;
+    await this.prisma.vm.update({ where: { id: vm.id }, data: { vcpus, memoryMb } });
+    const task = await this.tasks.enqueue('vm.resize', 'vm', vm.id,
+      { vmId: vm.id, vcpus, memoryMb }, user.id);
+    return { taskId: task.id };
+  }
+
+  async resizeDisk(user: AuthenticatedUser, vmId: string, diskId: string, newSizeGb: number) {
+    const vm = await this.get(user, vmId);
+    if (vm.state !== 'stopped') throw new BadRequestException('VM muss gestoppt sein');
+    const disk = vm.disks.find((d) => d.id === diskId);
+    if (!disk) throw new NotFoundException('Disk nicht gefunden');
+    if (newSizeGb <= disk.sizeGb) throw new BadRequestException('Neue Größe muss größer als aktuell sein');
+    await this.prisma.volume.update({ where: { id: diskId }, data: { sizeGb: newSizeGb } });
+    const task = await this.tasks.enqueue('vm.disk-resize', 'vm', vm.id,
+      { vmId: vm.id, diskId, newSizeGb }, user.id);
+    return { taskId: task.id };
+  }
+
   // ─── Snapshots ─────────────────────────────────────────────────────────────
 
   async createSnapshot(user: AuthenticatedUser, vmId: string, name: string, description?: string) {
@@ -306,6 +331,19 @@ export class VmsService implements TaskHandler, OnModuleInit {
           where: { id: payload.backupId },
           data: { state: 'completed', sizeBytes: totalBytes, target: result.targetDir },
         });
+        break;
+      }
+      case 'vm.resize':
+        await this.agent.resizeVm(node, vm.name, payload.vcpus, payload.memoryMb);
+        break;
+      case 'vm.disk-resize': {
+        const disk = await this.prisma.volume.findUnique({ where: { id: payload.diskId } });
+        if (!disk) break;
+        // Determine the actual path on the agent: storagePool.path + disk.name + ".qcow2"
+        const pool = await this.prisma.storagePool.findUnique({ where: { id: disk.storagePoolId } });
+        if (!pool) break;
+        const diskPath = `${pool.path}/${disk.name}.qcow2`;
+        await this.agent.resizeDisk(node, vm.name, diskPath, payload.newSizeGb);
         break;
       }
     }

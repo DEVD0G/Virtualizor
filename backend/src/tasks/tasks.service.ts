@@ -13,7 +13,9 @@ export type TaskKind =
   | 'vm.snapshot'
   | 'vm.snapshot-revert'
   | 'vm.snapshot-delete'
-  | 'vm.backup';
+  | 'vm.backup'
+  | 'vm.resize'
+  | 'vm.disk-resize';
 
 export interface TaskHandler {
   handle(kind: TaskKind, payload: Record<string, any>, onProgress: (p: number) => void): Promise<void>;
@@ -89,6 +91,17 @@ export class TasksService implements OnModuleInit, OnModuleDestroy {
 
   async get(id: string) {
     return this.prisma.task.findUnique({ where: { id } });
+  }
+
+  async list(filter: { resourceId?: string; state?: string; limit?: number }) {
+    return this.prisma.task.findMany({
+      where: {
+        ...(filter.resourceId ? { resourceId: filter.resourceId } : {}),
+        ...(filter.state ? { state: filter.state as any } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filter.limit ?? 50, 200),
+    });
   }
 
   private async process(job: Job) {

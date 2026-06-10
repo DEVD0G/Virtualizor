@@ -6,6 +6,7 @@ import ActivationPage from './pages/ActivationPage';
 import ApiKeysPage from './pages/ApiKeysPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
+import TasksPage from './pages/TasksPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
@@ -101,6 +102,7 @@ export default function App() {
         <Route path="/networks" element={<NetworksPage />} />
         <Route path="/storage" element={<StoragePage />} />
         <Route path="/api-keys" element={<ApiKeysPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/audit" element={<AuditPage />} />

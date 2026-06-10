@@ -1,4 +1,4 @@
-// Package metrics liest Host-Ressourcen aus /proc.
+// Package metrics liest Host-Ressourcen aus /proc und syscall.Statfs.
 package metrics
 
 import (
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -35,8 +36,30 @@ func (c *Collector) Collect() HostMetrics {
 	return HostMetrics{
 		CPUPercent: c.cpuPercent(),
 		MemUsedMb:  total - avail,
-		DiskUsedGb: map[string]int{},
+		DiskUsedGb: diskUsage([]string{"/var/lib/vcp", "/var/lib/libvirt", "/"}),
 	}
+}
+
+// diskUsage gibt für jedes angegebene Verzeichnis die genutzten Gigabytes zurück.
+// Wird ein Pfad nicht gefunden, wird er übersprungen. Doppelte Mounts werden dedupliziert.
+func diskUsage(paths []string) map[string]int {
+	seen := make(map[int32]bool)
+	result := make(map[string]int)
+	for _, p := range paths {
+		var st syscall.Statfs_t
+		if err := syscall.Statfs(p, &st); err != nil {
+			continue
+		}
+		if seen[st.Fsid.X__val[0]] {
+			continue
+		}
+		seen[st.Fsid.X__val[0]] = true
+		total := st.Blocks * uint64(st.Bsize)
+		free := st.Bfree * uint64(st.Bsize)
+		used := total - free
+		result[p] = int(used / 1024 / 1024 / 1024)
+	}
+	return result
 }
 
 func (c *Collector) cpuPercent() float64 {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 	"text/template"
 	"time"
 
@@ -285,6 +286,38 @@ func (m *Manager) DiskPaths(name string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+// ResizeDomain ändert vCPU- und RAM-Konfiguration einer gestoppten Domain.
+// Die Änderungen werden als persistente Konfiguration (Config-Flag) gespeichert.
+func (m *Manager) ResizeDomain(name string, vcpus, memMb int) error {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	state, _, _ := m.l.DomainGetState(dom, 0)
+	if libvirt.DomainState(state) == libvirt.DomainRunning {
+		return fmt.Errorf("VM muss gestoppt sein für Resize")
+	}
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, libvirt.DomainXMLInactive)
+	if err != nil {
+		return fmt.Errorf("DomainGetXMLDesc: %w", err)
+	}
+	// Ersetze <vcpu …>N</vcpu> und <memory …>N</memory> / <currentMemory …>N</currentMemory>
+	// in der zurückgegebenen XML (Einheit: KiB).
+	patVcpu := regexp.MustCompile(`<vcpu[^>]*>\d+</vcpu>`)
+	patMem  := regexp.MustCompile(`<memory[^>]*>\d+</memory>`)
+	patCur  := regexp.MustCompile(`<currentMemory[^>]*>\d+</currentMemory>`)
+	memKib  := fmt.Sprintf("%d", memMb*1024)
+	xmlStr = patVcpu.ReplaceAllString(xmlStr, fmt.Sprintf("<vcpu placement='static'>%d</vcpu>", vcpus))
+	xmlStr = patMem.ReplaceAllString(xmlStr, "<memory unit='KiB'>"+memKib+"</memory>")
+	xmlStr = patCur.ReplaceAllString(xmlStr, "<currentMemory unit='KiB'>"+memKib+"</currentMemory>")
+	if !strings.Contains(xmlStr, "<currentMemory") {
+		xmlStr = strings.Replace(xmlStr, "</memory>",
+			"</memory>\n  <currentMemory unit='KiB'>"+memKib+"</currentMemory>", 1)
+	}
+	_, err = m.l.DomainDefineXML(xmlStr)
+	return err
 }
 
 // VncPort gibt den vom QEMU zugewiesenen VNC-TCP-Port der laufenden Domain zurück.

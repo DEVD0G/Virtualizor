@@ -59,6 +59,14 @@ export class AgentClientService {
       `/v1/vms/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshotName)}`);
   }
 
+  resizeVm(node: Node, name: string, vcpus: number, memoryMb: number) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/resize`, { vcpus, memoryMb });
+  }
+
+  resizeDisk(node: Node, vmName: string, diskPath: string, newSizeGb: number) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/disks/resize`, { diskPath, newSizeGb });
+  }
+
   backupVm(node: Node, name: string, targetDir?: string) {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/backup`,
       targetDir ? { targetDir } : {});

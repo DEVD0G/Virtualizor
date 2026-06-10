@@ -62,9 +62,13 @@ export interface LicenseState {
 export interface Task {
   id: string;
   kind: string;
+  resourceType: string;
+  resourceId: string;
   state: 'queued' | 'running' | 'succeeded' | 'failed';
   progress: number;
   error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
 }
 
 export interface AuditLog {

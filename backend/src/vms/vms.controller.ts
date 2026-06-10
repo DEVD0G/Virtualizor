@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, Post, Query,
+  Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query,
 } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -15,6 +15,15 @@ class StopDto {
 class SnapshotDto {
   @IsString() name: string;
   @IsOptional() @IsString() description?: string;
+}
+
+class ResizeVmDto {
+  @IsOptional() @IsInt() @Min(1) @Max(128) vcpus?: number;
+  @IsOptional() @IsInt() @Min(256) @Max(1048576) memoryMb?: number;
+}
+
+class ResizeDiskDto {
+  @IsInt() @Min(1) @Max(16384) newSizeGb: number;
 }
 
 class CreateFirewallRuleDto {
@@ -111,6 +120,23 @@ export class VmsController {
     @Param('snapId') snapId: string,
   ) {
     return this.vms.deleteSnapshot(user, id, snapId);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('vm.create')
+  resize(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: ResizeVmDto) {
+    return this.vms.resize(user, id, dto);
+  }
+
+  @Patch(':id/disks/:diskId')
+  @RequirePermissions('vm.create')
+  resizeDisk(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('diskId') diskId: string,
+    @Body() dto: ResizeDiskDto,
+  ) {
+    return this.vms.resizeDisk(user, id, diskId, dto.newSizeGb);
   }
 
   @Get(':id/console')

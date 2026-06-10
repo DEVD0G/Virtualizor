@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,8 @@ import (
 	"github.com/devd0g/virtualizor/agent/internal/storage"
 	"github.com/devd0g/virtualizor/agent/internal/virt"
 )
+
+const qemuImgBin = "/usr/bin/qemu-img"
 
 type consoleEntry struct {
 	vmName    string
@@ -104,6 +107,8 @@ func (s *Server) ListenAndServe() error {
 	}))
 	mux.HandleFunc("DELETE /v1/vms/{name}/snapshots/{snap}", s.handleDeleteSnapshot)
 	mux.HandleFunc("POST /v1/vms/{name}/backup", s.handleBackupDirect)
+	mux.HandleFunc("POST /v1/vms/{name}/resize", s.handleResizeVm)
+	mux.HandleFunc("POST /v1/vms/{name}/disks/resize", s.handleResizeDisk)
 	mux.HandleFunc("POST /v1/console-token", s.handleConsoleToken)
 	mux.HandleFunc("GET /v1/console/ws", s.handleConsoleWs)
 
@@ -303,6 +308,65 @@ func (s *Server) handleBackupDirect(w http.ResponseWriter, r *http.Request) {
 		"files":      files,
 		"totalBytes": totalBytes,
 	})
+}
+
+// handleResizeVm ändert vCPU- und RAM-Konfiguration einer gestoppten VM.
+func (s *Server) handleResizeVm(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		VCPUs    int `json:"vcpus"`
+		MemoryMB int `json:"memoryMb"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if body.VCPUs < 1 || body.VCPUs > 128 || body.MemoryMB < 256 || body.MemoryMB > 1<<20 {
+		writeErr(w, 400, fmt.Errorf("ungültige resize-parameter"))
+		return
+	}
+	if err := s.virt.ResizeDomain(name, body.VCPUs, body.MemoryMB); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "resized"})
+}
+
+// handleResizeDisk vergrößert eine qcow2-Disk (nur Wachstum, kein Schrumpfen).
+func (s *Server) handleResizeDisk(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		DiskPath  string `json:"diskPath"`
+		NewSizeGb int    `json:"newSizeGb"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if body.DiskPath == "" || body.NewSizeGb < 1 || body.NewSizeGb > 16384 {
+		writeErr(w, 400, fmt.Errorf("ungültige disk-parameter"))
+		return
+	}
+	// Pfad muss im images-Verzeichnis liegen (Traversal-Schutz)
+	if !strings.HasPrefix(body.DiskPath, s.store.ImagesDir+"/") {
+		writeErr(w, 400, fmt.Errorf("diskPath außerhalb des storage-roots"))
+		return
+	}
+	size := fmt.Sprintf("%dG", body.NewSizeGb)
+	cmd := exec.Command(qemuImgBin, "resize", body.DiskPath, size)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		writeErr(w, 500, fmt.Errorf("qemu-img resize: %s: %w", out, err))
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "resized"})
 }
 
 func (s *Server) handleDeleteSnapshot(w http.ResponseWriter, r *http.Request) {

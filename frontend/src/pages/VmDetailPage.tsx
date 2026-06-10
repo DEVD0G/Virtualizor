@@ -14,6 +14,8 @@ export default function VmDetailPage() {
   const queryClient = useQueryClient();
   const [snapName, setSnapName] = useState('');
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
+  const [showResize, setShowResize] = useState(false);
+  const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
     action: 'accept' as 'accept' | 'drop',
@@ -114,7 +116,17 @@ export default function VmDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card">
-          <h2 className="mb-3 font-semibold">Konfiguration</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold">Konfiguration</h2>
+            {can('vm.create') && vm.state === 'stopped' && (
+              <button className="btn-secondary text-xs" onClick={() => {
+                setResizeForm({ vcpus: String(vm.vcpus), memoryMb: String(vm.memoryMb) });
+                setShowResize(!showResize);
+              }}>
+                {showResize ? 'Abbrechen' : 'Resize'}
+              </button>
+            )}
+          </div>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-slate-500">vCPUs</dt><dd>{vm.vcpus}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">RAM</dt><dd>{(vm.memoryMb / 1024).toFixed(1)} GiB</dd></div>
@@ -122,15 +134,55 @@ export default function VmDetailPage() {
             <div className="flex justify-between"><dt className="text-slate-500">Besitzer</dt><dd>{vm.owner.name} ({vm.owner.email})</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Erstellt</dt><dd>{new Date(vm.createdAt).toLocaleString()}</dd></div>
           </dl>
+          {showResize && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">vCPUs</label>
+                  <input className="input" type="number" min="1" max="128" value={resizeForm.vcpus}
+                    onChange={(e) => setResizeForm({ ...resizeForm, vcpus: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">RAM (MiB)</label>
+                  <input className="input" type="number" min="256" step="256" value={resizeForm.memoryMb}
+                    onChange={(e) => setResizeForm({ ...resizeForm, memoryMb: e.target.value })} />
+                </div>
+              </div>
+              <button className="btn-primary w-full" onClick={() => {
+                action.mutate({
+                  path: `/vms/${vm.id}`,
+                  method: 'PATCH',
+                  body: { vcpus: parseInt(resizeForm.vcpus), memoryMb: parseInt(resizeForm.memoryMb) },
+                });
+                setShowResize(false);
+              }}>
+                Resize anwenden
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="card">
           <h2 className="mb-3 font-semibold">Disks & Netzwerk</h2>
           <ul className="space-y-2 text-sm">
             {vm.disks.map((d) => (
-              <li key={d.id} className="flex justify-between">
+              <li key={d.id} className="flex items-center justify-between gap-2">
                 <span className="text-slate-500">{d.name}</span>
-                <span>{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
+                <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
+                {can('vm.create') && vm.state === 'stopped' && (
+                  <button
+                    className="btn-secondary text-xs"
+                    onClick={() => {
+                      const n = prompt(`Neue Größe für ${d.name} (GB, aktuell ${d.sizeGb})`);
+                      if (!n) return;
+                      const newSize = parseInt(n);
+                      if (isNaN(newSize) || newSize <= d.sizeGb) return alert('Neue Größe muss größer als aktuell sein');
+                      action.mutate({ path: `/vms/${vm.id}/disks/${d.id}`, method: 'PATCH', body: { newSizeGb: newSize } });
+                    }}
+                  >
+                    Resize
+                  </button>
+                )}
               </li>
             ))}
             {vm.nics.map((n) => (
