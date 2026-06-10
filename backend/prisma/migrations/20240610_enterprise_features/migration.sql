@@ -1,6 +1,16 @@
--- Add tags and description to vms table
+-- Add tags, description, and mountedIsoId to vms table
 ALTER TABLE "vms" ADD COLUMN IF NOT EXISTS "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
 ALTER TABLE "vms" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "vms" ADD COLUMN IF NOT EXISTS "mountedIsoId" TEXT;
+
+-- AddForeignKey for mountedIsoId
+DO $$ BEGIN
+  ALTER TABLE "vms"
+    ADD CONSTRAINT "vms_mountedIsoId_fkey"
+    FOREIGN KEY ("mountedIsoId") REFERENCES "isos"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 -- Add PortForwardProtocol enum
 DO $$ BEGIN

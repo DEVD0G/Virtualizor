@@ -50,6 +50,18 @@ export class AgentClientService {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(sourceName)}/clone`, { targetName });
   }
 
+  migrateVm(node: Node, vmName: string, targetAddress: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/migrate`, { targetAddress });
+  }
+
+  mountIso(node: Node, vmName: string, isoUrl: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/iso/mount`, { isoUrl });
+  }
+
+  unmountIso(node: Node, vmName: string) {
+    return this.call(node, 'DELETE', `/v1/vms/${encodeURIComponent(vmName)}/iso`);
+  }
+
   createContainer(node: Node, spec: { name: string; vcpus: number; memoryMb: number; diskGb: number; osTemplate: string; ipAddress?: string }) {
     return this.call(node, 'POST', '/v1/containers', spec);
   }

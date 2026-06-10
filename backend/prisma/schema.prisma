@@ -177,6 +177,8 @@ model Vm {
   errorMsg  String?
   tags      String[]
   description String?
+  mountedIsoId String?
+  mountedIso   Iso?  @relation(fields: [mountedIsoId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -285,6 +287,7 @@ model Iso {
   sha256    String
   sizeBytes BigInt?
   createdAt DateTime @default(now())
+  mountedVms Vm[]
 
   @@map("isos")
 }

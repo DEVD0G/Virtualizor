@@ -30,6 +30,14 @@ class CloneVmDto {
   @IsString() newName: string;
 }
 
+class MigrateVmDto {
+  @IsUUID() targetNodeId: string;
+}
+
+class MountIsoDto {
+  @IsUUID() isoId: string;
+}
+
 class UpdateVmMetaDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
@@ -81,6 +89,25 @@ export class VmsController {
   @RequirePermissions('vm.create')
   clone(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CloneVmDto) {
     return this.vms.clone(user, id, dto.newName);
+  }
+
+  @Post(':id/migrate')
+  @RequirePermissions('vm.manage')
+  migrate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: MigrateVmDto) {
+    return this.vms.migrate(user, id, dto.targetNodeId);
+  }
+
+  @Post(':id/iso')
+  @RequirePermissions('vm.manage')
+  mountIso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: MountIsoDto) {
+    return this.vms.mountIso(user, id, dto.isoId);
+  }
+
+  @Delete(':id/iso')
+  @HttpCode(204)
+  @RequirePermissions('vm.manage')
+  unmountIso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.vms.unmountIso(user, id);
   }
 
   @Patch(':id/meta')

@@ -7,6 +7,7 @@ import { EventsGateway } from '../events/events.gateway';
 export type TaskKind =
   | 'vm.provision'
   | 'vm.clone'
+  | 'vm.migrate'
   | 'vm.delete'
   | 'vm.start'
   | 'vm.stop'

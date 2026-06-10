@@ -35,11 +35,14 @@ export interface Vm {
   vcpus: number;
   memoryMb: number;
   errorMsg: string | null;
+  tags: string[];
+  description: string | null;
   createdAt: string;
   node: { id: string; name: string };
   owner: { id: string; email: string; name: string };
-  disks: { id: string; name: string; sizeGb: number; storagePool: { name: string; type: string } }[];
+  disks: { id: string; name: string; sizeGb: number; storagePool: { id: string; name: string; type: string } }[];
   nics: { id: string; mac: string; network: { name: string }; ips: { address: string }[] }[];
+  mountedIso: { id: string; name: string } | null;
 }
 
 export interface Snapshot {

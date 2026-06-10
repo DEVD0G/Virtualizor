@@ -21,10 +21,11 @@ export interface ConsoleMeta {
 }
 
 const vmInclude = {
-  node: { select: { id: true, name: true } },
+  node: { select: { id: true, name: true, agentAddress: true } },
   owner: { select: { id: true, email: true, name: true } },
   disks: { include: { storagePool: { select: { id: true, name: true, type: true } } } },
   nics: { include: { network: true, ips: true } },
+  mountedIso: { select: { id: true, name: true } },
 } satisfies Prisma.VmInclude;
 
 @Injectable()
@@ -202,6 +203,36 @@ export class VmsService implements TaskHandler, OnModuleInit {
     await this.prisma.vm.update({ where: { id: vm.id }, data: { state: 'deleting' } });
     const task = await this.tasks.enqueue('vm.delete', 'vm', vm.id, { vmId: vm.id }, user.id);
     return { taskId: task.id };
+  }
+
+  // ─── Migrate ───────────────────────────────────────────────────────────────
+
+  async migrate(user: AuthenticatedUser, id: string, targetNodeId: string) {
+    const vm = await this.get(user, id);
+    if (vm.state !== 'stopped') throw new BadRequestException('VM muss gestoppt sein');
+    const targetNode = await this.prisma.node.findFirst({ where: { id: targetNodeId, state: 'online' } });
+    if (!targetNode) throw new BadRequestException('Ziel-Node nicht verfügbar');
+    if (targetNode.id === vm.nodeId) throw new BadRequestException('VM befindet sich bereits auf diesem Node');
+    const task = await this.tasks.enqueue('vm.migrate', 'vm', vm.id,
+      { vmId: vm.id, targetNodeId }, user.id);
+    return { taskId: task.id };
+  }
+
+  // ─── ISO Mount ─────────────────────────────────────────────────────────────
+
+  async mountIso(user: AuthenticatedUser, vmId: string, isoId: string) {
+    const vm = await this.get(user, vmId);
+    const iso = await this.prisma.iso.findUnique({ where: { id: isoId } });
+    if (!iso) throw new NotFoundException('ISO nicht gefunden');
+    await this.agent.mountIso(vm.node as any, vm.name, iso.sourceUrl);
+    return this.prisma.vm.update({ where: { id: vm.id }, data: { mountedIsoId: isoId } });
+  }
+
+  async unmountIso(user: AuthenticatedUser, vmId: string) {
+    const vm = await this.get(user, vmId);
+    if (!(vm as any).mountedIsoId) throw new BadRequestException('Kein ISO eingehängt');
+    await this.agent.unmountIso(vm.node as any, vm.name);
+    return this.prisma.vm.update({ where: { id: vm.id }, data: { mountedIsoId: null } });
   }
 
   // ─── Resize ────────────────────────────────────────────────────────────────
@@ -387,6 +418,14 @@ export class VmsService implements TaskHandler, OnModuleInit {
           include: { node: true },
         });
         await this.agent.cloneVm(node, sourceVm.name, vm.name);
+        await this.setState(vm.id, vm.name, 'stopped');
+        break;
+      }
+      case 'vm.migrate': {
+        const targetNode = await this.prisma.node.findUniqueOrThrow({ where: { id: payload.targetNodeId } });
+        onProgress(10);
+        await this.agent.migrateVm(node, vm.name, targetNode.agentAddress);
+        await this.prisma.vm.update({ where: { id: vm.id }, data: { nodeId: targetNode.id } });
         await this.setState(vm.id, vm.name, 'stopped');
         break;
       }

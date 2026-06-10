@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, BackupSchedule, FirewallRule, Snapshot, Vm } from '../api/types';
+import { Backup, BackupSchedule, FirewallRule, Iso, Node, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import StatusBadge from '../components/StatusBadge';
@@ -19,6 +19,8 @@ export default function VmDetailPage() {
   const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
   const [showClone, setShowClone] = useState(false);
   const [cloneName, setCloneName] = useState('');
+  const [showMigrate, setShowMigrate] = useState(false);
+  const [migrateNodeId, setMigrateNodeId] = useState('');
   const [scheduleForm, setScheduleForm] = useState({ intervalHours: '24', targetDir: '' });
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
@@ -54,6 +56,16 @@ export default function VmDetailPage() {
     queryKey: ['vms', id, 'backup-schedules'],
     queryFn: () => api<BackupSchedule[]>(`/vms/${id}/backup-schedules`),
     enabled: can('backup.read'),
+  });
+  const { data: nodes } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: () => api<Node[]>('/nodes'),
+    enabled: can('node.read') && showMigrate,
+  });
+  const { data: isos } = useQuery({
+    queryKey: ['storage', 'isos'],
+    queryFn: () => api<Iso[]>('/storage/isos'),
+    enabled: can('vm.manage'),
   });
 
   const invalidate = () => {
@@ -113,6 +125,37 @@ export default function VmDetailPage() {
           </div>
         </div>
       )}
+      {showMigrate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-semibold">VM migrieren</h3>
+            <p className="mb-3 text-sm text-slate-500">Ziel-Node wählen (VM muss gestoppt sein)</p>
+            <select
+              className="input mb-4"
+              value={migrateNodeId}
+              onChange={(e) => setMigrateNodeId(e.target.value)}
+            >
+              <option value="">Node auswählen…</option>
+              {nodes?.filter((n) => n.state === 'online' && n.id !== vm.node.id).map((n) => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!migrateNodeId || action.isPending}
+                onClick={() => {
+                  action.mutate({ path: `/vms/${vm.id}/migrate`, body: { targetNodeId: migrateNodeId } });
+                  setShowMigrate(false);
+                }}
+              >
+                Migration starten
+              </button>
+              <button className="btn-secondary" onClick={() => setShowMigrate(false)}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -138,6 +181,14 @@ export default function VmDetailPage() {
               setShowClone(true);
             }}>
               Klonen
+            </button>
+          )}
+          {can('vm.manage') && vm.state === 'stopped' && (
+            <button className="btn-secondary" onClick={() => {
+              setMigrateNodeId('');
+              setShowMigrate(true);
+            }}>
+              Migrieren
             </button>
           )}
           {can('vm.delete') && (
@@ -355,6 +406,51 @@ export default function VmDetailPage() {
               <p className="text-sm text-slate-400">Keine Zeitpläne konfiguriert</p>
             )}
           </div>
+        </div>
+      )}
+
+      {can('vm.manage') && (
+        <div className="card">
+          <h2 className="mb-3 font-semibold">ISO-Laufwerk</h2>
+          {vm.mountedIso ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">Eingehängt</span>
+                <span className="font-mono text-sm">{vm.mountedIso.name}</span>
+              </div>
+              <button
+                className="btn-secondary text-xs"
+                disabled={action.isPending}
+                onClick={() => action.mutate({ path: `/vms/${vm.id}/iso`, method: 'DELETE' })}
+              >
+                Aushängen
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <select
+                className="input flex-1"
+                defaultValue=""
+                id={`iso-select-${vm.id}`}
+              >
+                <option value="">ISO auswählen…</option>
+                {isos?.map((iso) => (
+                  <option key={iso.id} value={iso.id}>{iso.name}</option>
+                ))}
+              </select>
+              <button
+                className="btn-secondary text-sm"
+                disabled={action.isPending}
+                onClick={() => {
+                  const sel = document.getElementById(`iso-select-${vm.id}`) as HTMLSelectElement;
+                  if (!sel.value) return;
+                  action.mutate({ path: `/vms/${vm.id}/iso`, method: 'POST', body: { isoId: sel.value } });
+                }}
+              >
+                Einhängen
+              </button>
+            </div>
+          )}
         </div>
       )}
 
