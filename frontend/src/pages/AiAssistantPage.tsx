@@ -24,11 +24,17 @@ function Message({
   const isUser = msg.role === 'user';
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      <div className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${isUser ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400' : 'bg-brand-500 text-white'}`}>
+      <div
+        className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${isUser ? '' : 'bg-brand-500 text-white'}`}
+        style={isUser ? { background: 'var(--surface-2)', color: 'var(--tx-1)' } : undefined}
+      >
         {isUser ? 'Du' : 'V'}
       </div>
       <div className={`max-w-2xl flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-brand-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'}`}>
+        <div
+          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? 'bg-brand-500 text-white rounded-tr-sm' : 'rounded-tl-sm shadow-sm'}`}
+          style={!isUser ? { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--tx-1)' } : undefined}
+        >
           {msg.content.split('\n').map((line, i, arr) => (
             <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
           ))}
@@ -128,7 +134,7 @@ export default function AiAssistantPage() {
       <div className="mb-4 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-2xl font-semibold">KI-Infrastruktur-Assistent</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-2)' }}>
             Stelle Fragen, plane Änderungen und verwalte deine Infrastruktur in natürlicher Sprache
           </p>
         </div>
@@ -143,7 +149,7 @@ export default function AiAssistantPage() {
             <button key={p.label} onClick={() => send(p.text)}
               className="card text-left hover:border-brand-300 hover:bg-brand-50/50 dark:hover:bg-brand-500/5 dark:hover:border-brand-500/40 transition-colors cursor-pointer">
               <div className="text-sm font-medium">{p.label}</div>
-              <div className="text-xs text-slate-400 mt-1 line-clamp-2">{p.text}</div>
+              <div className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--tx-3)' }}>{p.text}</div>
             </button>
           ))}
         </div>

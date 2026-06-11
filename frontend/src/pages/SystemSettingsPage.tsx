@@ -62,7 +62,7 @@ function AllgemeinSection() {
   return (
     <div className="card space-y-4">
       <h2 className="font-semibold">Allgemein</h2>
-      {isLoading && <p className="text-sm text-slate-400">Lade…</p>}
+      {isLoading && <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Lade…</p>}
       <div className="space-y-3 max-w-sm">
         <div>
           <label className="label">Cluster-Name</label>
@@ -135,7 +135,7 @@ function LizenzSection() {
   return (
     <div className="card space-y-4">
       <h2 className="font-semibold">Lizenz</h2>
-      {isLoading && <p className="text-sm text-slate-400">Lade…</p>}
+      {isLoading && <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Lade…</p>}
       <div className="space-y-3 max-w-sm">
         <div>
           <label className="label">Lizenz-Endpunkt</label>
@@ -204,8 +204,8 @@ function SmtpSection() {
 
   return (
     <div className="card space-y-4">
-      <h2 className="font-semibold">SMTP <span className="text-xs font-normal text-slate-400">(für zukünftige Benachrichtigungen)</span></h2>
-      {isLoading && <p className="text-sm text-slate-400">Lade…</p>}
+      <h2 className="font-semibold">SMTP <span className="text-xs font-normal" style={{ color: 'var(--tx-3)' }}>(für zukünftige Benachrichtigungen)</span></h2>
+      {isLoading && <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Lade…</p>}
       <div className="space-y-3 max-w-sm">
         <div>
           <label className="label">Host</label>

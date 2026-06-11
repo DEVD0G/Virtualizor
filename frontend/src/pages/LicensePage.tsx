@@ -32,7 +32,7 @@ export default function LicensePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Lizenz</h1>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
         Die Lizenzverwaltung erfolgt über den externen License-Server — das Panel zeigt nur den Status an.
       </p>
 
@@ -42,26 +42,26 @@ export default function LicensePage() {
           {license && <StatusBadge status={license.status} />}
         </div>
         <dl className="space-y-2 text-sm">
-          <div className="flex justify-between"><dt className="text-slate-500">Tier</dt><dd>{license?.tier ?? '—'}</dd></div>
+          <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Tier</dt><dd>{license?.tier ?? '—'}</dd></div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Limits</dt>
+            <dt style={{ color: 'var(--tx-2)' }}>Limits</dt>
             <dd>{license?.limits ? `${license.limits.maxNodes} Nodes · ${license.limits.maxVms} VMs` : '—'}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Features</dt>
+            <dt style={{ color: 'var(--tx-2)' }}>Features</dt>
             <dd className="max-w-sm text-right">{license?.features.join(', ') || '—'}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Gültig bis</dt>
+            <dt style={{ color: 'var(--tx-2)' }}>Gültig bis</dt>
             <dd>{license?.expiresAt ? new Date(license.expiresAt).toLocaleDateString() : '—'}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Zuletzt validiert</dt>
+            <dt style={{ color: 'var(--tx-2)' }}>Zuletzt validiert</dt>
             <dd>{license?.lastValidatedAt ? new Date(license.lastValidatedAt).toLocaleString() : '—'}</dd>
           </div>
           {license?.graceRemainingDays != null && (
             <div className="flex justify-between">
-              <dt className="text-slate-500">Grace Period</dt>
+              <dt style={{ color: 'var(--tx-2)' }}>Grace Period</dt>
               <dd className="text-amber-500">{license.graceRemainingDays} Tage verbleibend</dd>
             </div>
           )}

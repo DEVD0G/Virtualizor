@@ -73,15 +73,15 @@ export default function AlertsPage() {
             {Object.entries(METRIC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500">Schwellwert</label>
+            <label className="label">Schwellwert</label>
             <input className="input" type="number" min="0" value={threshold} onChange={(e) => setThreshold(e.target.value)} required />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500">Dauer (Min.)</label>
+            <label className="label">Dauer (Min.)</label>
             <input className="input" type="number" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500">Cooldown (Min.)</label>
+            <label className="label">Cooldown (Min.)</label>
             <input className="input" type="number" min="1" value={cooldown} onChange={(e) => setCooldown(e.target.value)} />
           </div>
           <select className="input sm:col-span-3" value={webhookId} onChange={(e) => setWebhookId(e.target.value)}>
@@ -102,15 +102,16 @@ export default function AlertsPage() {
             {rules?.map((r) => (
               <tr key={r.id}>
                 <td className="font-medium">{r.name}</td>
-                <td>{r.node?.name ?? <span className="text-slate-400">Alle</span>}</td>
+                <td>{r.node?.name ?? <span style={{ color: 'var(--tx-3)' }}>Alle</span>}</td>
                 <td className="font-mono text-xs">{METRIC_LABELS[r.metric]}</td>
                 <td>{r.threshold}</td>
-                <td>{r.webhook?.name ?? <span className="text-slate-400">—</span>}</td>
-                <td className="text-xs text-slate-500">{r.firedAt ? new Date(r.firedAt).toLocaleString() : '—'}</td>
+                <td>{r.webhook?.name ?? <span style={{ color: 'var(--tx-3)' }}>—</span>}</td>
+                <td className="text-xs" style={{ color: 'var(--tx-2)' }}>{r.firedAt ? new Date(r.firedAt).toLocaleString() : '—'}</td>
                 <td>
                   <button
                     onClick={() => toggle.mutate(r)}
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.enabled ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : ''}`}
+                    style={r.enabled ? undefined : { background: 'var(--surface-3)', color: 'var(--tx-2)' }}
                   >
                     {r.enabled ? 'aktiv' : 'inaktiv'}
                   </button>
@@ -126,7 +127,7 @@ export default function AlertsPage() {
               </tr>
             ))}
             {!rules?.length && (
-              <tr><td colSpan={8} className="text-center text-slate-400">Keine Regeln</td></tr>
+              <tr><td colSpan={8} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Regeln</td></tr>
             )}
           </tbody>
         </table>

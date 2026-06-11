@@ -113,7 +113,7 @@ export default function VmDetailPage() {
     setConsoleWsUrl(`${proto}://${window.location.host}${wsUrl}?token=${token}`);
   }
 
-  if (!vm) return <div className="text-slate-400">Lade…</div>;
+  if (!vm) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   return (
     <>
@@ -122,7 +122,7 @@ export default function VmDetailPage() {
       )}
       {showClone && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+          <div className="w-full max-w-sm rounded-xl p-6 shadow-xl" style={{ background: 'var(--surface)' }}>
             <h3 className="mb-4 text-lg font-semibold">VM klonen</h3>
             <label className="label">Name der neuen VM</label>
             <input
@@ -150,9 +150,9 @@ export default function VmDetailPage() {
       )}
       {showMigrate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+          <div className="w-full max-w-sm rounded-xl p-6 shadow-xl" style={{ background: 'var(--surface)' }}>
             <h3 className="mb-4 text-lg font-semibold">VM migrieren</h3>
-            <p className="mb-3 text-sm text-slate-500">Ziel-Node wählen (VM muss gestoppt sein)</p>
+            <p className="mb-3 text-sm" style={{ color: 'var(--tx-2)' }}>Ziel-Node wählen (VM muss gestoppt sein)</p>
             <select
               className="input mb-4"
               value={migrateNodeId}
@@ -248,24 +248,24 @@ export default function VmDetailPage() {
             )}
           </div>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-slate-500">vCPUs</dt><dd>{vm.vcpus}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>vCPUs</dt><dd>{vm.vcpus}</dd></div>
             {(vm.cpuSockets > 1 || vm.cpuCores > 1 || vm.cpuThreads > 1) && (
-              <div className="flex justify-between"><dt className="text-slate-500">CPU-Topologie</dt>
+              <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>CPU-Topologie</dt>
                 <dd>{vm.cpuSockets}S × {vm.cpuCores}C × {vm.cpuThreads}T</dd></div>
             )}
-            <div className="flex justify-between"><dt className="text-slate-500">RAM</dt><dd>{(vm.memoryMb / 1024).toFixed(1)} GiB</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">BIOS</dt>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>RAM</dt><dd>{(vm.memoryMb / 1024).toFixed(1)} GiB</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>BIOS</dt>
               <dd className="uppercase text-xs font-mono">{vm.bios ?? 'seabios'}</dd></div>
             {vm.bootOrder?.length > 0 && (
-              <div className="flex justify-between"><dt className="text-slate-500">Boot-Reihenfolge</dt>
+              <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Boot-Reihenfolge</dt>
                 <dd className="text-xs font-mono">{vm.bootOrder.join(' → ')}</dd></div>
             )}
-            <div className="flex justify-between"><dt className="text-slate-500">Node</dt><dd>{vm.node.name}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Besitzer</dt><dd>{vm.owner.name} ({vm.owner.email})</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Erstellt</dt><dd>{new Date(vm.createdAt).toLocaleString()}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Node</dt><dd>{vm.node.name}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Besitzer</dt><dd>{vm.owner.name} ({vm.owner.email})</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Erstellt</dt><dd>{new Date(vm.createdAt).toLocaleString()}</dd></div>
           </dl>
           {showResize && (
-            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">vCPUs</label>
@@ -293,25 +293,25 @@ export default function VmDetailPage() {
 
           {/* Tags & Description */}
           {(vm.description || (vm.tags && vm.tags.length > 0) || showMeta) && !showMeta && (
-            <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800 text-sm space-y-2">
-              {vm.description && <p className="text-slate-600 dark:text-slate-400 italic">{vm.description}</p>}
+            <div className="mt-4 border-t pt-4 text-sm space-y-2" style={{ borderColor: 'var(--border)' }}>
+              {vm.description && <p className="italic" style={{ color: 'var(--tx-2)' }}>{vm.description}</p>}
               {vm.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {vm.tags.map((t) => (
-                    <span key={t} className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">{t}</span>
+                    <span key={t} className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'var(--brand-sub)', color: 'var(--brand)' }}>{t}</span>
                   ))}
                 </div>
               )}
             </div>
           )}
           {can('vm.manage') && !showMeta && (
-            <button className="mt-3 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            <button className="mt-3 text-xs" style={{ color: 'var(--tx-3)' }}
               onClick={() => { setMetaForm({ description: vm.description ?? '', tags: vm.tags.join(', ') }); setShowMeta(true); }}>
               Beschreibung & Tags bearbeiten
             </button>
           )}
           {showMeta && (
-            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <div>
                 <label className="label">Beschreibung</label>
                 <input className="input" value={metaForm.description}
@@ -342,7 +342,7 @@ export default function VmDetailPage() {
             <ul className="space-y-2 text-sm">
               {vm.disks.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500">{d.name}</span>
+                  <span style={{ color: 'var(--tx-2)' }}>{d.name}</span>
                   <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
                   {can('vm.create') && vm.state === 'stopped' && (
                     <button
@@ -363,7 +363,7 @@ export default function VmDetailPage() {
             </ul>
           </div>
 
-          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+          <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Netzwerk-Interfaces</h2>
               {can('vm.manage') && (
@@ -374,7 +374,7 @@ export default function VmDetailPage() {
             </div>
 
             {showAddNic && (
-              <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+              <div className="mb-3 flex flex-wrap gap-2 rounded-lg border p-3" style={{ borderColor: 'var(--border)' }}>
                 <select className="input flex-1 min-w-[160px]" value={addNicNetworkId}
                   onChange={(e) => { setAddNicNetworkId(e.target.value); setAddNicPoolId(''); }}>
                   <option value="">Netzwerk wählen…</option>
@@ -406,7 +406,7 @@ export default function VmDetailPage() {
             <ul className="space-y-2 text-sm">
               {vm.nics.map((nic) => (
                 <li key={nic.id} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500 shrink-0">{nic.network.name}</span>
+                  <span className="shrink-0" style={{ color: 'var(--tx-2)' }}>{nic.network.name}</span>
                   <span className="font-mono text-xs flex-1 truncate">{nic.mac}{nic.ips[0] ? ` · ${nic.ips[0].address}` : ''}</span>
                   {can('vm.manage') && vm.nics.length > 1 && (
                     <button className="btn-danger text-xs shrink-0"
@@ -438,8 +438,8 @@ export default function VmDetailPage() {
           </div>
 
           {showAddPci && (
-            <div className="mb-4 rounded-lg border border-slate-200 p-3 dark:border-slate-700 space-y-2">
-              <p className="text-xs text-slate-500">Verfügbare PCI-Geräte auf Node {vm.node.name}:</p>
+            <div className="mb-4 rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs" style={{ color: 'var(--tx-2)' }}>Verfügbare PCI-Geräte auf Node {vm.node.name}:</p>
               {nodePciDevices ? (
                 <select className="input" value={selectedPciAddr}
                   onChange={(e) => setSelectedPciAddr(e.target.value)}>
@@ -452,7 +452,7 @@ export default function VmDetailPage() {
                   ))}
                 </select>
               ) : (
-                <p className="text-xs text-slate-400">Lade PCI-Geräte…</p>
+                <p className="text-xs" style={{ color: 'var(--tx-3)' }}>Lade PCI-Geräte…</p>
               )}
               <button className="btn-primary text-xs"
                 disabled={!selectedPciAddr || action.isPending}
@@ -485,7 +485,7 @@ export default function VmDetailPage() {
                 {pciDevices.map((p) => (
                   <tr key={p.id}>
                     <td className="font-mono text-xs">{p.domain}:{p.bus}:{p.slot}.{p.function}</td>
-                    <td className="text-slate-500">{p.label ?? '—'}</td>
+                    <td style={{ color: 'var(--tx-2)' }}>{p.label ?? '—'}</td>
                     <td className="text-right">
                       {vm.state === 'stopped' && (
                         <button className="btn-danger text-xs"
@@ -499,7 +499,7 @@ export default function VmDetailPage() {
               </tbody>
             </table>
           ) : (
-            <p className="text-sm text-slate-400">Kein PCI-Passthrough konfiguriert</p>
+            <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Kein PCI-Passthrough konfiguriert</p>
           )}
         </div>
       )}
@@ -528,9 +528,9 @@ export default function VmDetailPage() {
                   <td>{b.sizeBytes ? `${(Number(b.sizeBytes) / 1024 / 1024).toFixed(0)} MB` : '—'}</td>
                   <td>
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      b.state === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-                      : b.state === 'running' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-                      : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                      b.state === 'completed' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                      : b.state === 'running' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400'
+                      : 'bg-red-500/15 text-red-600 dark:text-red-400'
                     }`}>{b.state}</span>
                   </td>
                   <td className="text-right space-x-1">
@@ -554,12 +554,12 @@ export default function VmDetailPage() {
                   </td>
                 </tr>
               ))}
-              {!backups?.length && <tr><td colSpan={5} className="text-center text-slate-400">Keine Backups</td></tr>}
+              {!backups?.length && <tr><td colSpan={5} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Backups</td></tr>}
             </tbody>
           </table>
 
           {/* Backup Schedules */}
-          <div className="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <div className="mt-6 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
             <h3 className="mb-3 text-sm font-semibold">Geplante Backups</h3>
             {can('backup.manage') && (
               <div className="mb-3 flex flex-wrap gap-2">
@@ -603,7 +603,7 @@ export default function VmDetailPage() {
                       <td className="text-xs">{s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : '—'}</td>
                       <td className="text-xs">{s.nextRunAt ? new Date(s.nextRunAt).toLocaleString() : '—'}</td>
                       <td>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.enabled ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : ''}`} style={s.enabled ? {} : { background: 'var(--surface-2)', color: 'var(--tx-2)' }}>
                           {s.enabled ? 'Aktiv' : 'Inaktiv'}
                         </span>
                       </td>
@@ -624,7 +624,7 @@ export default function VmDetailPage() {
                 </tbody>
               </table>
             ) : (
-              <p className="text-sm text-slate-400">Keine Zeitpläne konfiguriert</p>
+              <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Keine Zeitpläne konfiguriert</p>
             )}
           </div>
         </div>
@@ -636,7 +636,7 @@ export default function VmDetailPage() {
           {vm.mountedIso ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">Eingehängt</span>
+                <span className="rounded bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">Eingehängt</span>
                 <span className="font-mono text-sm">{vm.mountedIso.name}</span>
               </div>
               <button
@@ -711,7 +711,7 @@ export default function VmDetailPage() {
                   </td>
                 </tr>
               ))}
-              {!snapshots?.length && <tr><td colSpan={3} className="text-center text-slate-400">Keine Snapshots</td></tr>}
+              {!snapshots?.length && <tr><td colSpan={3} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Snapshots</td></tr>}
             </tbody>
           </table>
         </div>

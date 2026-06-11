@@ -85,26 +85,26 @@ export default function BackupSchedulesPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400">
+                <td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>
                   Lade…
                 </td>
               </tr>
             )}
             {!isLoading && !schedules?.length && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400">
+                <td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>
                   Keine Backup-Zeitpläne vorhanden
                 </td>
               </tr>
             )}
             {schedules?.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <tr key={s.id}>
                 <td className="font-medium">{s.name}</td>
-                <td className="font-mono text-xs text-slate-500">
+                <td className="font-mono text-xs" style={{ color: 'var(--tx-2)' }}>
                   {s.targetType.toUpperCase()} / {s.targetId.slice(0, 8)}
                 </td>
                 <td>
-                  <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-800">
+                  <code className="rounded px-1.5 py-0.5 text-xs" style={{ background: 'var(--surface-2)' }}>
                     {s.cronExpr}
                   </code>
                 </td>
@@ -113,9 +113,10 @@ export default function BackupSchedulesPage() {
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                       s.enabled
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
-                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                        : ''
                     }`}
+                    style={!s.enabled ? { background: 'var(--surface-2)', color: 'var(--tx-2)' } : undefined}
                   >
                     {s.enabled ? 'Aktiv' : 'Pausiert'}
                   </span>
@@ -235,8 +236,9 @@ function NewScheduleForm({ onClose }: { onClose: () => void }) {
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   cronExpr === p.value
                     ? 'border-brand-500 bg-brand-500/10 text-brand-600 dark:text-brand-400'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                    : ''
                 }`}
+              style={cronExpr !== p.value ? { borderColor: 'var(--border)', color: 'var(--tx-2)' } : undefined}
                 onClick={() => setCronExpr(p.value)}
               >
                 {p.label}

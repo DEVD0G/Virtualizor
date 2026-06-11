@@ -94,21 +94,21 @@ export default function AuditPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={6} className="text-center text-slate-400">Lade…</td></tr>
+              <tr><td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>Lade…</td></tr>
             )}
             {logs?.map((log) => (
-              <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <tr key={log.id}>
                 <td className="whitespace-nowrap text-xs">{new Date(log.createdAt).toLocaleString()}</td>
-                <td className="text-xs">{log.user?.email ?? <span className="text-slate-400">system</span>}</td>
+                <td className="text-xs">{log.user?.email ?? <span style={{ color: 'var(--tx-3)' }}>system</span>}</td>
                 <td className="font-mono text-xs">{log.action}</td>
-                <td className="text-xs text-slate-500">
+                <td className="text-xs" style={{ color: 'var(--tx-2)' }}>
                   {log.resourceType}{log.resourceId ? `/${log.resourceId.slice(0, 8)}` : ''}
                 </td>
                 <td>
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                     log.outcome === 'success'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
-                      : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-red-500/15 text-red-600 dark:text-red-400'
                   }`}>
                     {log.outcome === 'success' ? 'OK' : 'Fehler'}
                   </span>
@@ -117,7 +117,7 @@ export default function AuditPage() {
               </tr>
             ))}
             {!isLoading && !logs?.length && (
-              <tr><td colSpan={6} className="text-center text-slate-400">Keine Einträge</td></tr>
+              <tr><td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Einträge</td></tr>
             )}
           </tbody>
         </table>
@@ -132,7 +132,7 @@ export default function AuditPage() {
         >
           ← Zurück
         </button>
-        <span className="text-slate-500">Seite {page + 1}</span>
+        <span style={{ color: 'var(--tx-2)' }}>Seite {page + 1}</span>
         <button
           className="btn-secondary"
           disabled={!logs || logs.length < PAGE_SIZE}

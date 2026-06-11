@@ -67,7 +67,7 @@ export default function WebhooksPage() {
           <input className="input" placeholder="Secret (HMAC-SHA256)" value={secret} onChange={(e) => setSecret(e.target.value)} required />
         </div>
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">Events</p>
+          <p className="mb-2 text-sm font-medium" style={{ color: 'var(--tx-1)' }}>Events</p>
           <div className="flex flex-wrap gap-2">
             {AVAILABLE_EVENTS.map((ev) => (
               <label key={ev} className="flex items-center gap-1.5 cursor-pointer">
@@ -97,12 +97,13 @@ export default function WebhooksPage() {
                   onClick={() => setSelectedId(h.id === selectedId ? null : h.id)}
                 >
                   <td className="font-medium">{h.name}</td>
-                  <td className="max-w-[160px] truncate text-xs text-slate-500">{h.url}</td>
+                  <td className="max-w-[160px] truncate text-xs" style={{ color: 'var(--tx-2)' }}>{h.url}</td>
                   <td className="text-xs">{h.events.join(', ')}</td>
                   <td>
                     <button
                       onClick={(e) => { e.stopPropagation(); toggle.mutate(h); }}
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${h.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${h.active ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : ''}`}
+                      style={!h.active ? { background: 'var(--surface-2)', color: 'var(--tx-2)' } : undefined}
                     >
                       {h.active ? 'aktiv' : 'inaktiv'}
                     </button>
@@ -118,7 +119,7 @@ export default function WebhooksPage() {
                 </tr>
               ))}
               {!hooks?.length && (
-                <tr><td colSpan={5} className="text-center text-slate-400">Keine Webhooks</td></tr>
+                <tr><td colSpan={5} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Webhooks</td></tr>
               )}
             </tbody>
           </table>
@@ -129,17 +130,17 @@ export default function WebhooksPage() {
             <h2 className="mb-3 font-semibold">Letzte Zustellungen</h2>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {deliveries?.map((d) => (
-                <div key={d.id} className={`rounded-lg p-2 text-xs border ${d.success ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'}`}>
+                <div key={d.id} className={`rounded-lg p-2 text-xs border ${d.success ? 'border-emerald-200 bg-emerald-500/10 dark:border-emerald-800' : 'border-red-200 bg-red-500/10 dark:border-red-800'}`}>
                   <div className="flex justify-between mb-1">
                     <span className="font-mono font-medium">{d.event}</span>
-                    <span className={d.success ? 'text-emerald-600' : 'text-red-600'}>
+                    <span className={d.success ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
                       {d.success ? `HTTP ${d.statusCode}` : d.error ?? 'Fehler'}
                     </span>
                   </div>
-                  <span className="text-slate-500">{new Date(d.deliveredAt).toLocaleString()}</span>
+                  <span style={{ color: 'var(--tx-2)' }}>{new Date(d.deliveredAt).toLocaleString()}</span>
                 </div>
               ))}
-              {!deliveries?.length && <p className="text-center text-slate-400">Keine Zustellungen</p>}
+              {!deliveries?.length && <p className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Zustellungen</p>}
             </div>
           </div>
         )}
