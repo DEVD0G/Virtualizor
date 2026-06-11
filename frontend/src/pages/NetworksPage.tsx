@@ -105,7 +105,7 @@ export default function NetworksPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['port-forwards'] }),
   });
 
-  if (isLoading) return <div className="text-slate-400">Lade…</div>;
+  if (isLoading) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   return (
     <div className="space-y-6">
@@ -126,7 +126,7 @@ export default function NetworksPage() {
               <label className="label">Name</label>
               <input className="input" placeholder="mein-netz" value={netForm.name}
                 onChange={(e) => setNetForm({ ...netForm, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} />
-              <p className="mt-1 text-xs text-slate-500">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--tx-3)' }}>3–63 Zeichen: a-z, 0-9, Bindestrich</p>
             </div>
             <div>
               <label className="label">Modus</label>
@@ -160,7 +160,7 @@ export default function NetworksPage() {
       )}
 
       {networks.length === 0 && (
-        <div className="card text-center text-slate-400">Keine Netzwerke konfiguriert.</div>
+        <div className="card text-center" style={{ color: 'var(--tx-3)' }}>Keine Netzwerke konfiguriert.</div>
       )}
 
       {networks.map((net) => (
@@ -168,7 +168,7 @@ export default function NetworksPage() {
           <div className="flex items-center justify-between">
             <div>
               <span className="font-semibold">{net.name}</span>
-              <span className="ml-2 text-xs text-slate-500">
+              <span className="ml-2 text-xs" style={{ color: 'var(--tx-2)' }}>
                 {net.mode} · {net.bridge}{net.vlanTag ? ` · VLAN ${net.vlanTag}` : ''}
               </span>
             </div>
@@ -182,9 +182,9 @@ export default function NetworksPage() {
 
           {/* Port Forwarding Section */}
           {net.mode === 'nat' && can('network.read') && (
-            <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="pt-4" style={{ borderTop: '1px solid var(--border-2)' }}>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Port Forwarding</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--tx-2)' }}>Port Forwarding</span>
                 {can('network.manage') && (
                   <button className="btn-secondary text-xs"
                     onClick={() => {
@@ -197,7 +197,7 @@ export default function NetworksPage() {
                 )}
               </div>
               {showPfFor === net.id && can('network.manage') && (
-                <div className="mb-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <div className="mb-3 rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
                   <div className="grid gap-2 sm:grid-cols-5">
                     <select className="input" value={pfForm.protocol}
                       onChange={(e) => setPfForm({ ...pfForm, protocol: e.target.value as 'tcp' | 'udp' })}>
@@ -228,7 +228,7 @@ export default function NetworksPage() {
                 </div>
               )}
               {portForwards.data?.length === 0 && showPfFor === net.id && (
-                <p className="text-sm text-slate-400">Keine Port-Forward-Regeln</p>
+                <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Keine Port-Forward-Regeln</p>
               )}
               {portForwards.data && portForwards.data.length > 0 && (
                 <table className="table-base text-xs">
@@ -261,7 +261,7 @@ export default function NetworksPage() {
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">IP-Pools</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--tx-2)' }}>IP-Pools</span>
               {can('network.manage') && (
                 <button className="btn-secondary text-xs"
                   onClick={() => setShowPoolFor(showPoolFor === net.id ? null : net.id)}>
@@ -271,7 +271,7 @@ export default function NetworksPage() {
             </div>
 
             {showPoolFor === net.id && (
-              <div className="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700 sm:grid-cols-3">
+              <div className="mb-3 grid gap-3 rounded-lg p-3 sm:grid-cols-3" style={{ border: '1px solid var(--border)' }}>
                 <div>
                   <label className="label">CIDR</label>
                   <input className="input" placeholder="10.0.0.0/24"
@@ -301,7 +301,7 @@ export default function NetworksPage() {
             )}
 
             {net.ipPools.length === 0 ? (
-              <p className="text-sm text-slate-400">Keine IP-Pools</p>
+              <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Keine IP-Pools</p>
             ) : (
               <table className="table-base">
                 <thead>

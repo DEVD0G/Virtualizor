@@ -124,15 +124,18 @@ export default function ContainersPage() {
             Zurücksetzen
           </button>
         )}
-        <span className="ml-auto self-center text-sm text-slate-500">
+        <span className="ml-auto self-center text-sm" style={{ color: 'var(--tx-2)' }}>
           {filtered.length}{hasFilter ? ` von ${containers?.length ?? 0}` : ''} Container
         </span>
       </div>
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 dark:border-brand-500/30 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
+        <div
+          className="flex items-center gap-3 rounded-lg px-4 py-2.5"
+          style={{ background: 'var(--brand-sub)', border: '1px solid var(--brand-ring)' }}
+        >
+          <span className="text-sm font-medium" style={{ color: 'var(--brand)' }}>
             {selected.size} Container ausgewählt
           </span>
           <div className="flex gap-2">
@@ -153,7 +156,7 @@ export default function ContainersPage() {
               </button>
             )}
           </div>
-          <button className="ml-auto text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          <button className="ml-auto text-xs hover:underline" style={{ color: 'var(--tx-3)' }}
             onClick={() => setSelected(new Set())}>
             Auswahl aufheben
           </button>
@@ -173,11 +176,10 @@ export default function ContainersPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={10} className="text-center text-slate-400">Lade…</td></tr>
+              <tr><td colSpan={10} className="text-center" style={{ color: 'var(--tx-3)' }}>Lade…</td></tr>
             )}
             {filtered.map((ct) => (
-              <tr key={ct.id}
-                className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${selected.has(ct.id) ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}>
+              <tr key={ct.id} style={selected.has(ct.id) ? { background: 'var(--brand-sub)' } : undefined}>
                 <td>
                   <input type="checkbox" checked={selected.has(ct.id)} onChange={() => toggleOne(ct.id)}
                     className="rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
@@ -191,7 +193,7 @@ export default function ContainersPage() {
                 <td>
                   <div className="flex flex-wrap gap-1">
                     {ct.tags?.map((t) => (
-                      <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{t}</span>
+                      <span key={t} className="rounded-full px-2 py-0.5 text-xs" style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}>{t}</span>
                     ))}
                   </div>
                 </td>
@@ -219,7 +221,7 @@ export default function ContainersPage() {
               </tr>
             ))}
             {!isLoading && !filtered.length && (
-              <tr><td colSpan={10} className="text-center text-slate-400">
+              <tr><td colSpan={10} className="text-center" style={{ color: 'var(--tx-3)' }}>
                 {containers?.length ? 'Keine Treffer für den aktuellen Filter' : 'Keine Container vorhanden'}
               </td></tr>
             )}

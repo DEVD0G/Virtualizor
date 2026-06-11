@@ -20,52 +20,62 @@ const categoryIcons: Record<string, string> = {
   'network.create': '🌐',
 };
 
-const riskColors = {
-  low: 'border-emerald-400 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10',
-  medium: 'border-amber-400 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10',
-  high: 'border-red-400 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10',
+const riskBorder = {
+  low:    '2px solid rgba(34,197,94,0.4)',
+  medium: '2px solid rgba(245,158,11,0.4)',
+  high:   '2px solid rgba(239,68,68,0.4)',
 };
-
+const riskBg = {
+  low:    'rgba(34,197,94,0.06)',
+  medium: 'rgba(245,158,11,0.06)',
+  high:   'rgba(239,68,68,0.06)',
+};
+const riskColor = {
+  low:    '#22c55e',
+  medium: '#f59e0b',
+  high:   '#ef4444',
+};
 const riskLabels = { low: 'Geringes Risiko', medium: 'Mittleres Risiko', high: 'Hohes Risiko' };
-const riskTextColors = {
-  low: 'text-emerald-700 dark:text-emerald-400',
-  medium: 'text-amber-700 dark:text-amber-400',
-  high: 'text-red-700 dark:text-red-400',
-};
 
 export default function ActionPlanCard({ plan, planId, status, results, onConfirm, onReject }: Props) {
   return (
-    <div className={`my-3 rounded-xl border-2 p-4 ${riskColors[plan.riskLevel]}`}>
+    <div
+      className="my-3 rounded-xl p-4"
+      style={{ border: riskBorder[plan.riskLevel], background: riskBg[plan.riskLevel] }}
+    >
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <div className="font-semibold text-sm text-slate-800 dark:text-slate-200">{plan.intent}</div>
-          <div className={`text-xs font-medium mt-0.5 ${riskTextColors[plan.riskLevel]}`}>
+          <div className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>{plan.intent}</div>
+          <div className="mt-0.5 text-xs font-medium" style={{ color: riskColor[plan.riskLevel] }}>
             {riskLabels[plan.riskLevel]}
           </div>
         </div>
         {status === 'done' && (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             Ausgeführt
           </span>
         )}
         {status === 'rejected' && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+          <span
+            className="rounded-full px-2 py-0.5 text-xs font-medium"
+            style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}
+          >
             Abgebrochen
           </span>
         )}
         {status === 'executing' && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 animate-pulse">
+          <span className="animate-pulse rounded-full bg-[var(--brand-sub)] px-2 py-0.5 text-xs font-medium text-[var(--brand)]">
             Wird ausgeführt…
           </span>
         )}
       </div>
 
-      <p className="mb-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{plan.explanation}</p>
+      <p className="mb-3 text-xs leading-relaxed" style={{ color: 'var(--tx-2)' }}>{plan.explanation}</p>
 
       {plan.warnings && plan.warnings.length > 0 && (
-        <div className="mb-3 rounded-lg bg-amber-100 px-3 py-2 dark:bg-amber-500/20">
+        <div className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2">
           {plan.warnings.map((w, i) => (
-            <p key={i} className="text-xs text-amber-800 dark:text-amber-300">⚠ {w}</p>
+            <p key={i} className="text-xs text-amber-600 dark:text-amber-400">⚠ {w}</p>
           ))}
         </div>
       )}
@@ -76,15 +86,16 @@ export default function ActionPlanCard({ plan, planId, status, results, onConfir
           return (
             <div
               key={i}
-              className="flex items-center gap-2 rounded-lg bg-white/60 px-3 py-2 text-xs dark:bg-slate-900/40"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border-2)' }}
             >
               <span className="text-base leading-none">{categoryIcons[step.capability] ?? '⚡'}</span>
-              <span className="flex-1 text-slate-700 dark:text-slate-300">{step.description}</span>
+              <span className="flex-1" style={{ color: 'var(--tx-1)' }}>{step.description}</span>
               {!step.reversible && (
-                <span className="text-amber-600 dark:text-amber-400" title="Nicht rückgängig zu machen">⚠</span>
+                <span className="text-amber-500" title="Nicht rückgängig zu machen">⚠</span>
               )}
               {result && (
-                <span className={result.success ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={result.success ? 'text-emerald-500' : 'text-red-500'}>
                   {result.success ? '✓' : '✗'}
                 </span>
               )}
@@ -96,12 +107,12 @@ export default function ActionPlanCard({ plan, planId, status, results, onConfir
       {status === 'done' && results && (
         <div className="mb-2 space-y-1">
           {results.filter((r) => !r.success).map((r, i) => (
-            <p key={i} className="text-xs text-red-600 dark:text-red-400">
+            <p key={i} className="text-xs text-red-500">
               Schritt {r.stepIndex + 1} fehlgeschlagen: {r.error}
             </p>
           ))}
           {results.every((r) => r.success) && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            <p className="text-xs text-emerald-500">
               Alle {results.length} Schritte erfolgreich ausgeführt.
             </p>
           )}
@@ -109,15 +120,15 @@ export default function ActionPlanCard({ plan, planId, status, results, onConfir
       )}
 
       {status === 'pending' && (
-        <div className="flex gap-2 mt-2">
+        <div className="mt-2 flex gap-2">
           <button
-            className="flex-1 rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition-colors"
+            className="btn-primary flex-1 text-xs"
             onClick={() => onConfirm(planId)}
           >
             Ausführen bestätigen
           </button>
           <button
-            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+            className="btn-secondary text-xs"
             onClick={() => onReject(planId)}
           >
             Abbrechen

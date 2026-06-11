@@ -168,13 +168,14 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold">Zwei-Faktor-Authentifizierung (TOTP)</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tx-2)' }}>
             Zeitbasierte Einmalcodes über Google Authenticator, Bitwarden, Authy o.ä.
           </p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-          totpEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-200 text-slate-500 dark:bg-slate-700'
-        }`}>
+        <span
+          className={`text-xs px-2 py-1 rounded-full font-medium ${totpEnabled ? 'bg-emerald-500/20 text-emerald-400' : ''}`}
+          style={totpEnabled ? {} : { background: 'var(--surface-2)', color: 'var(--tx-2)' }}
+        >
           {totpEnabled ? 'Aktiv' : 'Inaktiv'}
         </span>
       </div>
@@ -208,15 +209,15 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
       {/* ─── Setup: QR code + manual secret ──────────────────────────────────── */}
       {phase === 'setup' && setupData && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
             Scanne den QR-Code mit deiner Authenticator-App oder gib den Schlüssel manuell ein.
           </p>
           <div className="flex gap-6 items-start">
-            <img src={setupData.qrDataUrl} alt="TOTP QR-Code" className="w-40 h-40 rounded-lg border border-slate-200 dark:border-slate-700" />
+            <img src={setupData.qrDataUrl} alt="TOTP QR-Code" className="w-40 h-40 rounded-lg border" style={{ borderColor: 'var(--border)' }} />
             <div className="flex-1 space-y-2">
-              <label className="text-xs text-slate-500">Manueller Schlüssel</label>
+              <label className="text-xs" style={{ color: 'var(--tx-2)' }}>Manueller Schlüssel</label>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-slate-800 px-3 py-2 text-xs font-mono text-slate-200 break-all select-all">
+                <code className="flex-1 rounded px-3 py-2 text-xs font-mono break-all select-all" style={{ background: 'var(--surface-2)', color: 'var(--tx-1)' }}>
                   {setupData.secret}
                 </code>
                 <button className="btn-secondary text-xs shrink-0 px-3" onClick={copySecret}>
@@ -247,7 +248,7 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
               </button>
             </div>
           </div>
-          <button type="button" className="text-xs text-slate-500 hover:underline" onClick={() => { setPhase('idle'); setSetupData(null); setCode(''); }}>
+          <button type="button" className="text-xs hover:underline" style={{ color: 'var(--tx-2)' }} onClick={() => { setPhase('idle'); setSetupData(null); setCode(''); }}>
             Abbrechen
           </button>
         </div>
@@ -256,7 +257,7 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
       {/* ─── Disable: confirm with current code ──────────────────────────────── */}
       {phase === 'disable' && (
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">Gib deinen aktuellen Authenticator-Code ein, um TOTP zu deaktivieren.</p>
+          <p className="text-sm" style={{ color: 'var(--tx-2)' }}>Gib deinen aktuellen Authenticator-Code ein, um TOTP zu deaktivieren.</p>
           <div className="flex gap-2 max-w-xs">
             <input
               className="input font-mono tracking-widest text-center"
@@ -276,7 +277,7 @@ function TotpSection({ totpEnabled }: { totpEnabled: boolean }) {
               {disable.isPending ? 'Deaktiviere…' : 'Deaktivieren'}
             </button>
           </div>
-          <button type="button" className="text-xs text-slate-500 hover:underline" onClick={() => { setPhase('idle'); setCode(''); }}>
+          <button type="button" className="text-xs hover:underline" style={{ color: 'var(--tx-2)' }} onClick={() => { setPhase('idle'); setCode(''); }}>
             Abbrechen
           </button>
         </div>
@@ -321,25 +322,25 @@ function SessionsSection() {
           </button>
         )}
       </div>
-      <p className="text-sm text-slate-500">Aktive Refresh-Token deiner Sitzungen.</p>
-      {isLoading && <p className="text-sm text-slate-400">Lade…</p>}
+      <p className="text-sm" style={{ color: 'var(--tx-2)' }}>Aktive Refresh-Token deiner Sitzungen.</p>
+      {isLoading && <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Lade…</p>}
       {sessions && sessions.length === 0 && (
-        <p className="text-sm text-slate-400">Keine aktiven Sitzungen.</p>
+        <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Keine aktiven Sitzungen.</p>
       )}
       {sessions && sessions.length > 0 && (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700">
-              <th className="py-2 text-left font-medium text-slate-600 dark:text-slate-400">Erstellt</th>
-              <th className="py-2 text-left font-medium text-slate-600 dark:text-slate-400">Läuft ab</th>
+            <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+              <th className="py-2 text-left font-medium" style={{ color: 'var(--tx-2)' }}>Erstellt</th>
+              <th className="py-2 text-left font-medium" style={{ color: 'var(--tx-2)' }}>Läuft ab</th>
               <th></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody style={{ borderColor: 'var(--border)' }}>
             {sessions.map((s) => (
-              <tr key={s.id}>
+              <tr key={s.id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                 <td className="py-2 text-xs">{new Date(s.createdAt).toLocaleString()}</td>
-                <td className="py-2 text-xs text-slate-500">{new Date(s.expiresAt).toLocaleString()}</td>
+                <td className="py-2 text-xs" style={{ color: 'var(--tx-2)' }}>{new Date(s.expiresAt).toLocaleString()}</td>
                 <td className="py-2 text-right">
                   <button
                     className="btn-danger text-xs"

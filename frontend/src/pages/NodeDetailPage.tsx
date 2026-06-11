@@ -11,13 +11,13 @@ import StatusBadge from '../components/StatusBadge';
 const HOURS_OPTIONS = [1, 6, 24] as const;
 
 function bar(pct: number) {
-  const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  const color = pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#22c55e';
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-slate-700">
-        <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className="h-1.5 w-24 rounded-full" style={{ background: 'var(--border)' }}>
+        <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
       </div>
-      <span className="text-xs text-slate-500 w-8 text-right">{pct.toFixed(0)}%</span>
+      <span className="w-8 text-right text-xs" style={{ color: 'var(--tx-3)' }}>{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export default function NodeDetailPage() {
     onSuccess: invalidate,
   });
 
-  if (!node) return <div className="text-slate-400">Lade…</div>;
+  if (!node) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   const cpuPct = node.cpuUsage ?? 0;
   const ramPct = node.memoryMb > 0 ? ((node.memUsedMb ?? 0) / node.memoryMb) * 100 : 0;
@@ -89,7 +89,7 @@ export default function NodeDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/nodes" className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">← Nodes</Link>
+          <Link to="/nodes" className="text-sm hover:underline" style={{ color: 'var(--tx-3)' }}>← Nodes</Link>
           <h1 className="text-2xl font-semibold">{node.name}</h1>
           <StatusBadge status={node.state} />
         </div>
@@ -138,12 +138,12 @@ export default function NodeDetailPage() {
         <div className="card">
           <h2 className="mb-3 font-semibold">Konfiguration</h2>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-slate-500">Hostname</dt><dd>{node.hostname}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Agent-Adresse</dt><dd className="font-mono text-xs">{node.agentAddress}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Agent-Version</dt><dd>{node.agentVersion ?? '—'}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">CPU</dt><dd>{node.cpuCores} Cores</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">RAM</dt><dd>{(node.memoryMb / 1024).toFixed(0)} GiB</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Heartbeat</dt><dd>{node.lastHeartbeatAt ? new Date(node.lastHeartbeatAt).toLocaleTimeString() : '—'}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Hostname</dt><dd>{node.hostname}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Agent-Adresse</dt><dd className="font-mono text-xs">{node.agentAddress}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Agent-Version</dt><dd>{node.agentVersion ?? '—'}</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>CPU</dt><dd>{node.cpuCores} Cores</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>RAM</dt><dd>{(node.memoryMb / 1024).toFixed(0)} GiB</dd></div>
+            <div className="flex justify-between"><dt style={{ color: 'var(--tx-2)' }}>Heartbeat</dt><dd>{node.lastHeartbeatAt ? new Date(node.lastHeartbeatAt).toLocaleTimeString() : '—'}</dd></div>
           </dl>
         </div>
 
@@ -151,11 +151,11 @@ export default function NodeDetailPage() {
           <h2 className="mb-3 font-semibold">Auslastung (live)</h2>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="flex justify-between text-xs text-slate-500"><span>CPU</span><span>{cpuPct.toFixed(1)}%</span></div>
+              <div className="flex justify-between text-xs" style={{ color: 'var(--tx-2)' }}><span>CPU</span><span>{cpuPct.toFixed(1)}%</span></div>
               {bar(cpuPct)}
             </div>
             <div className="space-y-1">
-              <div className="flex justify-between text-xs text-slate-500"><span>RAM</span><span>{(node.memUsedMb / 1024).toFixed(1)} / {(node.memoryMb / 1024).toFixed(0)} GiB</span></div>
+              <div className="flex justify-between text-xs" style={{ color: 'var(--tx-2)' }}><span>RAM</span><span>{(node.memUsedMb / 1024).toFixed(1)} / {(node.memoryMb / 1024).toFixed(0)} GiB</span></div>
               {bar(ramPct)}
             </div>
           </div>
@@ -169,28 +169,29 @@ export default function NodeDetailPage() {
           <div className="flex gap-1">
             {HOURS_OPTIONS.map((h) => (
               <button key={h} onClick={() => setHours(h)}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${hours === h ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'}`}>
+                className="rounded px-2 py-1 text-xs font-medium transition-colors"
+                style={hours === h ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--tx-2)' }}>
                 {h}h
               </button>
             ))}
           </div>
         </div>
         {metrics.length < 2 ? (
-          <p className="text-sm text-slate-400">Noch keine Metrik-Daten für den gewählten Zeitraum.</p>
+          <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Noch keine Metrik-Daten für den gewählten Zeitraum.</p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <div className="mb-1 text-xs text-slate-500">CPU %</div>
-              <Sparkline data={cpuData} width={300} height={48} max={100} color="#6366f1" />
-              <div className="mt-1 flex justify-between text-xs text-slate-400">
+              <div className="mb-1 text-xs" style={{ color: 'var(--tx-2)' }}>CPU %</div>
+              <Sparkline data={cpuData} width={300} height={48} max={100} color="var(--brand)" />
+              <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--tx-3)' }}>
                 <span>{new Date(metrics[0].sampledAt).toLocaleTimeString()}</span>
                 <span>{new Date(metrics[metrics.length - 1].sampledAt).toLocaleTimeString()}</span>
               </div>
             </div>
             <div>
-              <div className="mb-1 text-xs text-slate-500">RAM %</div>
-              <Sparkline data={ramData} width={300} height={48} max={100} color="#10b981" />
-              <div className="mt-1 flex justify-between text-xs text-slate-400">
+              <div className="mb-1 text-xs" style={{ color: 'var(--tx-2)' }}>RAM %</div>
+              <Sparkline data={ramData} width={300} height={48} max={100} color="#22c55e" />
+              <div className="mt-1 flex justify-between text-xs" style={{ color: 'var(--tx-3)' }}>
                 <span>{new Date(metrics[0].sampledAt).toLocaleTimeString()}</span>
                 <span>{new Date(metrics[metrics.length - 1].sampledAt).toLocaleTimeString()}</span>
               </div>
@@ -211,7 +212,7 @@ export default function NodeDetailPage() {
         </div>
 
         {showPoolForm && (
-          <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-4 grid gap-3 rounded-lg p-3 sm:grid-cols-2 lg:grid-cols-4" style={{ border: '1px solid var(--border)' }}>
             <div>
               <label className="label">Name</label>
               <input className="input" placeholder="local-ssd" value={poolForm.name}
@@ -252,11 +253,11 @@ export default function NodeDetailPage() {
             {node.storagePools.map((p) => (
               <tr key={p.id}>
                 <td className="font-medium">{p.name}</td>
-                <td><span className="rounded bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{p.type}</span></td>
+                <td><span className="rounded px-2 py-0.5 text-xs" style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}>{p.type}</span></td>
                 <td className="font-mono text-xs">{p.path}</td>
                 <td>{p.totalGb > 0 ? `${p.totalGb} GB` : '—'}</td>
                 <td>{p.usedGb > 0 ? `${p.usedGb} GB` : '—'}</td>
-                <td>{p.isDefault ? <span className="text-brand-500 font-medium text-xs">✓ Standard</span> : ''}</td>
+                <td>{p.isDefault ? <span className="text-xs font-medium" style={{ color: 'var(--brand)' }}>✓ Standard</span> : ''}</td>
                 <td className="space-x-2 text-right">
                   {can('node.manage') && !p.isDefault && (
                     <button className="btn-secondary text-xs" onClick={() => setDefaultPool.mutate(p.id)}>Als Standard</button>
@@ -271,7 +272,7 @@ export default function NodeDetailPage() {
               </tr>
             ))}
             {!node.storagePools.length && (
-              <tr><td colSpan={7} className="text-center text-slate-400">Keine Pools</td></tr>
+              <tr><td colSpan={7} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Pools</td></tr>
             )}
           </tbody>
         </table>
@@ -294,7 +295,7 @@ export default function NodeDetailPage() {
               </tr>
             ))}
             {!node.vms.length && (
-              <tr><td colSpan={4} className="text-center text-slate-400">Keine VMs</td></tr>
+              <tr><td colSpan={4} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine VMs</td></tr>
             )}
           </tbody>
         </table>

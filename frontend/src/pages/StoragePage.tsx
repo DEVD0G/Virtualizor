@@ -22,16 +22,17 @@ export default function StoragePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Storage</h1>
 
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
         {(['templates', 'isos', 'cluster'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+            style={
               tab === t
-                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
+                ? { borderColor: 'var(--brand)', color: 'var(--brand)' }
+                : { borderColor: 'transparent', color: 'var(--tx-2)' }
+            }
           >
             {TAB_LABELS[t]}
           </button>
@@ -55,16 +56,16 @@ function ClusterTab() {
 
   const onlineNodes = nodes?.filter((n) => n.state === 'online') ?? [];
 
-  if (!nodes) return <div className="text-slate-400">Lade…</div>;
+  if (!nodes) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
   if (onlineNodes.length === 0) {
-    return <div className="card text-center text-slate-400">Keine Online-Nodes verfügbar</div>;
+    return <div className="card text-center" style={{ color: 'var(--tx-3)' }}>Keine Online-Nodes verfügbar</div>;
   }
 
   const totalPools = onlineNodes.length;
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
         Storage Pools aller Online-Nodes. Klicke auf einen Node für Details.
       </p>
       {onlineNodes.map((n) => <NodePoolCard key={n.id} node={n} />)}
@@ -86,7 +87,7 @@ function NodePoolCard({ node }: { node: Node }) {
   const totalGb = detail?.storagePools.reduce((s, p) => s + p.totalGb, 0) ?? 0;
   const usedGb  = detail?.storagePools.reduce((s, p) => s + p.usedGb, 0) ?? 0;
   const pct = totalGb > 0 ? (usedGb / totalGb) * 100 : 0;
-  const barColor = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  const barColor = pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#22c55e';
 
   return (
     <div className="card space-y-3">
@@ -95,20 +96,20 @@ function NodePoolCard({ node }: { node: Node }) {
           {node.name}
         </Link>
         {totalGb > 0 && (
-          <span className="text-xs text-slate-500">{usedGb} / {totalGb} GB genutzt</span>
+          <span className="text-xs" style={{ color: 'var(--tx-3)' }}>{usedGb} / {totalGb} GB genutzt</span>
         )}
       </div>
 
       {totalGb > 0 && (
-        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700">
-          <div className={`h-1.5 rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div className="h-1.5 w-full rounded-full" style={{ background: 'var(--border)' }}>
+          <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: barColor }} />
         </div>
       )}
 
       {!detail ? (
         <p className="text-xs text-slate-400">Lade Pools…</p>
       ) : detail.storagePools.length === 0 ? (
-        <p className="text-xs text-slate-400">Keine Storage Pools konfiguriert</p>
+        <p className="text-xs" style={{ color: 'var(--tx-3)' }}>Keine Storage Pools konfiguriert</p>
       ) : (
         <table className="table-base text-xs">
           <thead>
@@ -117,21 +118,21 @@ function NodePoolCard({ node }: { node: Node }) {
           <tbody>
             {detail.storagePools.map((p) => {
               const poolPct = p.totalGb > 0 ? (p.usedGb / p.totalGb) * 100 : 0;
-              const poolColor = poolPct > 90 ? 'bg-red-500' : poolPct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+              const poolColor = poolPct > 90 ? '#ef4444' : poolPct > 70 ? '#f59e0b' : '#22c55e';
               return (
                 <tr key={p.id}>
                   <td className="font-medium">{p.name}</td>
-                  <td><span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{p.type}</span></td>
-                  <td className="font-mono text-slate-500 max-w-[160px] truncate">{p.path}</td>
+                  <td><span className="rounded px-1.5 py-0.5" style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}>{p.type}</span></td>
+                  <td className="max-w-[160px] truncate font-mono" style={{ color: 'var(--tx-3)' }}>{p.path}</td>
                   <td>{p.totalGb > 0 ? `${p.totalGb} GB` : '—'}</td>
                   <td>{p.usedGb > 0 ? `${p.usedGb} GB` : '—'}</td>
                   <td>
                     {p.totalGb > 0 ? (
                       <div className="flex items-center gap-1.5">
-                        <div className="h-1 w-16 rounded-full bg-slate-200 dark:bg-slate-700">
-                          <div className={`h-1 rounded-full ${poolColor}`} style={{ width: `${Math.min(poolPct, 100)}%` }} />
+                        <div className="h-1 w-16 rounded-full" style={{ background: 'var(--border)' }}>
+                          <div className="h-1 rounded-full" style={{ width: `${Math.min(poolPct, 100)}%`, background: poolColor }} />
                         </div>
-                        <span className="text-slate-500">{poolPct.toFixed(0)}%</span>
+                        <span style={{ color: 'var(--tx-3)' }}>{poolPct.toFixed(0)}%</span>
                       </div>
                     ) : '—'}
                   </td>
@@ -169,7 +170,7 @@ function TemplatesTab({ canManage }: { canManage: boolean }) {
     onSettled: () => qc.invalidateQueries({ queryKey: ['storage', 'templates'] }),
   });
 
-  if (isLoading) return <div className="text-slate-400">Lade…</div>;
+  if (isLoading) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   return (
     <div className="space-y-4">
@@ -186,25 +187,25 @@ function TemplatesTab({ canManage }: { canManage: boolean }) {
           <h3 className="font-semibold">Neues Template</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">ID (z.B. ubuntu-24.04)</label>
+              <label className="label">ID (z.B. ubuntu-24.04)</label>
               <input className="input w-full font-mono" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} required placeholder="distro-version" />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Anzeigename</label>
+              <label className="label">Anzeigename</label>
               <input className="input w-full" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Ubuntu 24.04 LTS" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Source URL (qcow2/img)</label>
+            <label className="label">Source URL (qcow2/img)</label>
             <input className="input w-full font-mono text-xs" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} required placeholder="https://..." />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">SHA-256 (optional)</label>
+              <label className="label">SHA-256 (optional)</label>
               <input className="input w-full font-mono text-xs" value={form.sha256} onChange={(e) => setForm({ ...form, sha256: e.target.value })} placeholder="leer = kein Check" />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">OS-Typ</label>
+              <label className="label">OS-Typ</label>
               <select className="input w-full" value={form.osType} onChange={(e) => setForm({ ...form, osType: e.target.value })}>
                 <option value="linux">Linux</option>
                 <option value="windows">Windows</option>
@@ -212,7 +213,7 @@ function TemplatesTab({ canManage }: { canManage: boolean }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Min. Disk (GB)</label>
+              <label className="label">Min. Disk (GB)</label>
               <input className="input w-full" type="number" min={5} value={form.minDiskGb} onChange={(e) => setForm({ ...form, minDiskGb: e.target.value })} />
             </div>
           </div>
@@ -234,9 +235,9 @@ function TemplatesTab({ canManage }: { canManage: boolean }) {
             <tr key={t.id}>
               <td className="font-mono text-xs">{t.id}</td>
               <td>{t.name}</td>
-              <td className="text-slate-500">{t.osType}</td>
+              <td style={{ color: 'var(--tx-2)' }}>{t.osType}</td>
               <td>{t.minDiskGb} GB</td>
-              <td className="font-mono text-xs text-slate-500">{t.sha256 ? `${t.sha256.slice(0, 12)}…` : '—'}</td>
+              <td className="font-mono text-xs" style={{ color: 'var(--tx-3)' }}>{t.sha256 ? `${t.sha256.slice(0, 12)}…` : '—'}</td>
               {canManage && (
                 <td className="text-right">
                   <button
@@ -250,7 +251,7 @@ function TemplatesTab({ canManage }: { canManage: boolean }) {
             </tr>
           ))}
           {!templates?.length && (
-            <tr><td colSpan={canManage ? 6 : 5} className="text-center text-slate-400">Keine Templates</td></tr>
+            <tr><td colSpan={canManage ? 6 : 5} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Templates</td></tr>
           )}
         </tbody>
       </table>
@@ -281,7 +282,7 @@ function IsosTab({ canManage }: { canManage: boolean }) {
     onSettled: () => qc.invalidateQueries({ queryKey: ['storage', 'isos'] }),
   });
 
-  if (isLoading) return <div className="text-slate-400">Lade…</div>;
+  if (isLoading) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   return (
     <div className="space-y-4">
@@ -297,15 +298,15 @@ function IsosTab({ canManage }: { canManage: boolean }) {
         <form className="card space-y-3" onSubmit={(e) => { e.preventDefault(); setFormError(''); create.mutate(); }}>
           <h3 className="font-semibold">Neue ISO</h3>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Name</label>
+            <label className="label">Name</label>
             <input className="input w-full" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="ubuntu-24.04-server.iso" />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Download-URL</label>
+            <label className="label">Download-URL</label>
             <input className="input w-full font-mono text-xs" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} required placeholder="https://..." />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">SHA-256 (optional)</label>
+            <label className="label">SHA-256 (optional)</label>
             <input className="input w-full font-mono text-xs" value={form.sha256} onChange={(e) => setForm({ ...form, sha256: e.target.value })} placeholder="leer = kein Check" />
           </div>
           {formError && <p className="text-sm text-red-500">{formError}</p>}
@@ -325,8 +326,8 @@ function IsosTab({ canManage }: { canManage: boolean }) {
           {isos?.map((iso) => (
             <tr key={iso.id}>
               <td>{iso.name}</td>
-              <td className="font-mono text-xs text-slate-500 max-w-xs truncate">{iso.sourceUrl}</td>
-              <td className="font-mono text-xs text-slate-500">{iso.sha256 ? `${iso.sha256.slice(0, 12)}…` : '—'}</td>
+              <td className="max-w-xs truncate font-mono text-xs" style={{ color: 'var(--tx-3)' }}>{iso.sourceUrl}</td>
+              <td className="font-mono text-xs" style={{ color: 'var(--tx-3)' }}>{iso.sha256 ? `${iso.sha256.slice(0, 12)}…` : '—'}</td>
               <td>{new Date(iso.createdAt).toLocaleDateString()}</td>
               {canManage && (
                 <td className="text-right">
@@ -341,7 +342,7 @@ function IsosTab({ canManage }: { canManage: boolean }) {
             </tr>
           ))}
           {!isos?.length && (
-            <tr><td colSpan={canManage ? 5 : 4} className="text-center text-slate-400">Keine ISOs</td></tr>
+            <tr><td colSpan={canManage ? 5 : 4} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine ISOs</td></tr>
           )}
         </tbody>
       </table>

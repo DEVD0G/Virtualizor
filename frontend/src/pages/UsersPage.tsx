@@ -40,7 +40,7 @@ function QuotaEditor({ role }: { role: Role }) {
     return (
       <div className="flex items-center gap-2">
         {quota ? (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs" style={{ color: 'var(--tx-2)' }}>
             {[
               quota.maxVms != null && `${quota.maxVms} VMs`,
               quota.maxVcpus != null && `${quota.maxVcpus} vCPUs`,
@@ -48,7 +48,7 @@ function QuotaEditor({ role }: { role: Role }) {
               quota.maxStorageGb != null && `${quota.maxStorageGb} GiB Disk`,
             ].filter(Boolean).join(' · ')}
           </span>
-        ) : <span className="text-xs text-slate-400">Keine Limits</span>}
+        ) : <span className="text-xs" style={{ color: 'var(--tx-3)' }}>Keine Limits</span>}
         <button onClick={() => {
           setOpen(true);
           if (quota) {
@@ -57,7 +57,7 @@ function QuotaEditor({ role }: { role: Role }) {
             setMaxMemGib(quota.maxMemoryMb ? String(quota.maxMemoryMb / 1024) : '');
             setMaxStorageGb(quota.maxStorageGb?.toString() ?? '');
           }
-        }} className="text-xs text-brand-500 hover:underline">Bearbeiten</button>
+        }} className="text-xs hover:underline" style={{ color: 'var(--brand)' }}>Bearbeiten</button>
         {quota && <button onClick={() => clear.mutate()} className="text-xs text-red-500 hover:underline">Entfernen</button>}
       </div>
     );
@@ -108,14 +108,15 @@ function PermissionCheckboxes({
   }
 
   return (
-    <div className="max-h-72 space-y-3 overflow-y-auto rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+    <div className="max-h-72 space-y-3 overflow-y-auto rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
       {Object.entries(groups).map(([group, perms]) => (
         <div key={group}>
           <div className="mb-1 flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{group}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-3)' }}>{group}</span>
             <button
               type="button"
-              className="text-xs text-brand-500 hover:underline"
+              className="text-xs hover:underline"
+              style={{ color: 'var(--brand)' }}
               onClick={() => toggleGroup(perms)}
             >
               {perms.every((p) => selected.includes(p)) ? 'Alle ab' : 'Alle an'}
@@ -254,7 +255,7 @@ export default function UsersPage() {
                 <td>{u.name}</td>
                 <td>{u.role.name}</td>
                 <td><StatusBadge status={u.isActive ? 'running' : 'stopped'} /></td>
-                <td className="text-xs text-slate-500">{new Date(u.createdAt).toLocaleDateString()}</td>
+                <td className="text-xs" style={{ color: 'var(--tx-2)' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="space-x-1 text-right">
                   <button
                     className="btn-secondary text-xs"
@@ -292,7 +293,7 @@ export default function UsersPage() {
       {/* Edit user modal */}
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900 space-y-4">
+          <div className="w-full max-w-sm rounded-xl p-6 shadow-xl space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="font-semibold">Benutzer bearbeiten: {editUser.email}</h3>
             <div>
               <label className="label">Rolle</label>
@@ -350,11 +351,11 @@ export default function UsersPage() {
               <tr key={r.id}>
                 <td className="font-medium">
                   {r.name}
-                  {r.isSystem && <span className="ml-2 text-xs text-slate-400">(System)</span>}
+                  {r.isSystem && <span className="ml-2 text-xs" style={{ color: 'var(--tx-3)' }}>(System)</span>}
                 </td>
                 <td>{r._count.users}</td>
                 <td><QuotaEditor role={r} /></td>
-                <td className="max-w-xs text-xs text-slate-500">
+                <td className="max-w-xs text-xs" style={{ color: 'var(--tx-2)' }}>
                   {r.permissions.map((p) => p.permissionId).join(', ') || '—'}
                 </td>
                 <td className="space-x-1 text-right">
@@ -390,7 +391,7 @@ export default function UsersPage() {
       {/* Create role modal */}
       {showCreateRole && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900 space-y-4">
+          <div className="w-full max-w-lg rounded-xl p-6 shadow-xl space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="font-semibold">Neue Rolle erstellen</h3>
             <div>
               <label className="label">Name</label>
@@ -411,7 +412,7 @@ export default function UsersPage() {
                   onChange={(p) => setRoleForm({ ...roleForm, permissions: p })}
                 />
               ) : (
-                <p className="text-sm text-slate-400">Lade…</p>
+                <p className="text-sm" style={{ color: 'var(--tx-3)' }}>Lade…</p>
               )}
             </div>
             {roleFormError && <p className="text-sm text-red-500">{roleFormError}</p>}
@@ -432,7 +433,7 @@ export default function UsersPage() {
       {/* Edit role permissions modal */}
       {editRole && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900 space-y-4">
+          <div className="w-full max-w-lg rounded-xl p-6 shadow-xl space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="font-semibold">Berechtigungen: {editRole.name}</h3>
             {allPermissions ? (
               <PermissionCheckboxes

@@ -39,9 +39,9 @@ export default function NodesPage() {
             </button>
           </div>
           {joinToken && (
-            <div className="rounded-lg bg-slate-100 p-3 font-mono text-xs dark:bg-slate-800">
-              <p className="mb-1 font-sans text-slate-500">Auf dem Hypervisor ausführen (Token 15 min gültig):</p>
-              sudo ./scripts/agent-install.sh --panel-url {window.location.origin} --join-token {joinToken}
+            <div className="rounded-lg p-3 font-mono text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <p className="mb-1 font-sans text-xs" style={{ color: 'var(--tx-2)' }}>Auf dem Hypervisor ausführen (Token 15 min gültig):</p>
+              <span style={{ color: 'var(--tx-1)' }}>sudo ./scripts/agent-install.sh --panel-url {window.location.origin} --join-token {joinToken}</span>
             </div>
           )}
         </div>
@@ -56,7 +56,7 @@ export default function NodesPage() {
             {nodes?.map((n) => {
               const cpuPct = n.cpuUsage ?? 0;
               const ramPct = n.memoryMb > 0 ? ((n.memUsedMb ?? 0) / n.memoryMb) * 100 : 0;
-              const barColor = (pct: number) => pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+              const barColor = (pct: number) => pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#22c55e';
               return (
                 <tr key={n.id}>
                   <td><Link className="font-medium text-brand-500 hover:underline" to={`/nodes/${n.id}`}>{n.name}</Link></td>
@@ -65,19 +65,19 @@ export default function NodesPage() {
                   <td>{n.cpuCores} Cores</td>
                   <td>{(n.memoryMb / 1024).toFixed(0)} GiB</td>
                   <td>
-                    <div className="flex items-center gap-2 min-w-[80px]">
-                      <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
-                        <div className={`h-1.5 rounded-full ${barColor(cpuPct)}`} style={{ width: `${cpuPct}%` }} />
+                    <div className="flex min-w-[80px] items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full" style={{ background: 'var(--border)' }}>
+                        <div className="h-1.5 rounded-full" style={{ width: `${cpuPct}%`, background: barColor(cpuPct) }} />
                       </div>
-                      <span className="text-xs text-slate-500 w-8 text-right">{cpuPct.toFixed(0)}%</span>
+                      <span className="w-8 text-right text-xs" style={{ color: 'var(--tx-3)' }}>{cpuPct.toFixed(0)}%</span>
                     </div>
                   </td>
                   <td>
-                    <div className="flex items-center gap-2 min-w-[80px]">
-                      <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
-                        <div className={`h-1.5 rounded-full ${barColor(ramPct)}`} style={{ width: `${ramPct}%` }} />
+                    <div className="flex min-w-[80px] items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full" style={{ background: 'var(--border)' }}>
+                        <div className="h-1.5 rounded-full" style={{ width: `${ramPct}%`, background: barColor(ramPct) }} />
                       </div>
-                      <span className="text-xs text-slate-500 w-8 text-right">{ramPct.toFixed(0)}%</span>
+                      <span className="w-8 text-right text-xs" style={{ color: 'var(--tx-3)' }}>{ramPct.toFixed(0)}%</span>
                     </div>
                   </td>
                   <td>{n._count?.vms ?? 0}</td>
@@ -87,7 +87,7 @@ export default function NodesPage() {
               );
             })}
             {!nodes?.length && (
-              <tr><td colSpan={10} className="text-center text-slate-400">Noch keine Nodes registriert</td></tr>
+              <tr><td colSpan={10} className="text-center" style={{ color: 'var(--tx-3)' }}>Noch keine Nodes registriert</td></tr>
             )}
           </tbody>
         </table>

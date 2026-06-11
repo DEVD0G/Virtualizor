@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import type React from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Task } from '../api/types';
@@ -29,16 +30,22 @@ const KIND_LABELS: Record<string, string> = {
 
 function StateChip({ state }: { state: Task['state'] }) {
   const cls: Record<Task['state'], string> = {
-    queued: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    queued: '',
     running: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
     succeeded: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
     failed: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+  };
+  const stateStyle: Record<Task['state'], React.CSSProperties> = {
+    queued: { background: 'var(--surface-2)', color: 'var(--tx-2)' },
+    running: {},
+    succeeded: {},
+    failed: {},
   };
   const labels: Record<Task['state'], string> = {
     queued: 'Wartend', running: 'Läuft', succeeded: 'Fertig', failed: 'Fehler',
   };
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls[state]}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls[state]}`} style={stateStyle[state]}>
       {labels[state]}
     </span>
   );
@@ -111,24 +118,24 @@ export default function TasksPage() {
             Zurücksetzen
           </button>
         )}
-        <span className="ml-auto self-center text-sm text-slate-500">
+        <span className="ml-auto self-center text-sm" style={{ color: 'var(--tx-2)' }}>
           {filtered.length} von {tasks.length} Jobs
         </span>
       </div>
 
       {running.length > 0 && (
         <div className="card space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Aktive Jobs</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Aktive Jobs</h2>
           {running.map((t) => (
             <div key={t.id} className="flex items-center gap-4">
               <StateChip state={t.state} />
               <span className="flex-1 text-sm font-medium">{KIND_LABELS[t.kind] ?? t.kind}</span>
-              <Link to={`/vms/${t.resourceId}`} className="text-xs text-brand-500 hover:underline">{t.resourceId.slice(0, 8)}…</Link>
-              <div className="w-32 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
-                <div className="h-1.5 rounded-full bg-brand-500 transition-all" style={{ width: `${t.progress}%` }} />
+              <Link to={`/vms/${t.resourceId}`} className="text-xs hover:underline" style={{ color: 'var(--brand)' }}>{t.resourceId.slice(0, 8)}…</Link>
+              <div className="w-32 h-1.5 rounded-full" style={{ background: 'var(--border)' }}>
+                <div className="h-1.5 rounded-full transition-all" style={{ width: `${t.progress}%`, background: 'var(--brand)' }} />
               </div>
-              <span className="w-8 text-right text-xs text-slate-500">{t.progress}%</span>
-              <span className="text-xs text-slate-400">{duration(t.createdAt, null)}</span>
+              <span className="w-8 text-right text-xs" style={{ color: 'var(--tx-2)' }}>{t.progress}%</span>
+              <span className="text-xs" style={{ color: 'var(--tx-3)' }}>{duration(t.createdAt, null)}</span>
             </div>
           ))}
         </div>
@@ -140,23 +147,23 @@ export default function TasksPage() {
             <tr><th>Job</th><th>Ressource</th><th>Status</th><th>Dauer</th><th>Erstellt</th><th>Fehler</th></tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={6} className="text-center text-slate-400">Lade…</td></tr>}
+            {isLoading && <tr><td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>Lade…</td></tr>}
             {done.map((t) => (
               <tr key={t.id}>
                 <td className="font-medium">{KIND_LABELS[t.kind] ?? t.kind}</td>
                 <td>
-                  <Link to={`/${t.resourceType}s/${t.resourceId}`} className="font-mono text-xs text-brand-500 hover:underline">
+                  <Link to={`/${t.resourceType}s/${t.resourceId}`} className="font-mono text-xs hover:underline" style={{ color: 'var(--brand)' }}>
                     {t.resourceId.slice(0, 8)}…
                   </Link>
                 </td>
                 <td><StateChip state={t.state} /></td>
-                <td className="text-xs text-slate-500">{duration(t.createdAt, t.finishedAt)}</td>
-                <td className="text-xs text-slate-500">{new Date(t.createdAt).toLocaleString()}</td>
+                <td className="text-xs" style={{ color: 'var(--tx-2)' }}>{duration(t.createdAt, t.finishedAt)}</td>
+                <td className="text-xs" style={{ color: 'var(--tx-2)' }}>{new Date(t.createdAt).toLocaleString()}</td>
                 <td className="max-w-[200px] truncate text-xs text-red-500">{t.error ?? ''}</td>
               </tr>
             ))}
             {!isLoading && !done.length && (
-              <tr><td colSpan={6} className="text-center text-slate-400">Keine abgeschlossenen Jobs</td></tr>
+              <tr><td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine abgeschlossenen Jobs</td></tr>
             )}
           </tbody>
         </table>
