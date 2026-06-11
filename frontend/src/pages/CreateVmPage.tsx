@@ -284,7 +284,7 @@ export default function CreateVmPage() {
 
         {/* ─ Infrastruktur ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Infrastruktur</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Infrastruktur</h2>
           <div>
             <label className="label">Node</label>
             <select className="input" value={nodeId} onChange={(e) => { setNodeId(e.target.value); setDisks((prev) => prev.map((d) => ({ ...d, storagePoolId: '' }))); }}>
@@ -339,7 +339,7 @@ export default function CreateVmPage() {
 
         {/* ─ Cloud-Init ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Cloud-Init (optional)</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Cloud-Init (optional)</h2>
           <div>
             <label className="label">SSH Public Key</label>
             <textarea className="input font-mono text-xs" rows={2} value={sshKey}
