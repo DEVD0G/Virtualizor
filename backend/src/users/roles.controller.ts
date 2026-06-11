@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ArrayNotEmpty, IsArray, IsOptional, IsString } from 'class-validator';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
+import { ArrayNotEmpty, IsArray, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -13,6 +13,13 @@ class UpdateRoleDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) permissions?: string[];
+}
+
+class UpsertQuotaDto {
+  @IsOptional() @IsInt() @Min(0) maxVms?: number;
+  @IsOptional() @IsInt() @Min(0) maxVcpus?: number;
+  @IsOptional() @IsInt() @Min(0) maxMemoryMb?: number;
+  @IsOptional() @IsInt() @Min(0) maxStorageGb?: number;
 }
 
 @Controller()
@@ -81,5 +88,29 @@ export class RolesController {
     if (role._count.users > 0) throw new BadRequestException('Rolle wird noch verwendet');
     await this.prisma.role.delete({ where: { id } });
     return { ok: true };
+  }
+
+  @Get('roles/:id/quota')
+  async getQuota(@Param('id') id: string) {
+    const quota = await this.prisma.resourceQuota.findUnique({ where: { roleId: id } });
+    if (!quota) throw new NotFoundException('Kein Quota konfiguriert');
+    return quota;
+  }
+
+  @Put('roles/:id/quota')
+  async upsertQuota(@Param('id') id: string, @Body() dto: UpsertQuotaDto) {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new NotFoundException('Rolle nicht gefunden');
+    return this.prisma.resourceQuota.upsert({
+      where: { roleId: id },
+      create: { roleId: id, ...dto },
+      update: dto,
+    });
+  }
+
+  @Delete('roles/:id/quota')
+  @HttpCode(204)
+  async deleteQuota(@Param('id') id: string) {
+    await this.prisma.resourceQuota.deleteMany({ where: { roleId: id } });
   }
 }
