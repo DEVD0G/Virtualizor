@@ -21,6 +21,8 @@ import { QuotasModule } from './quotas/quotas.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ContainersModule } from './containers/containers.module';
+import { SettingsModule } from './settings/settings.module';
+import { SchedulesModule } from './schedules/schedules.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -51,6 +53,8 @@ import { SeedService } from './bootstrap/seed.service';
     WebhooksModule,
     AlertsModule,
     ContainersModule,
+    SettingsModule,
+    SchedulesModule,
   ],
   controllers: [HealthController],
   providers: [

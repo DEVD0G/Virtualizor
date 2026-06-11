@@ -9,6 +9,8 @@ import ApiKeysPage from './pages/ApiKeysPage';
 import WebhooksPage from './pages/WebhooksPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
+import SystemSettingsPage from './pages/SystemSettingsPage';
+import BackupSchedulesPage from './pages/BackupSchedulesPage';
 import TasksPage from './pages/TasksPage';
 import ContainerDetailPage from './pages/ContainerDetailPage';
 import ContainersPage from './pages/ContainersPage';
@@ -118,6 +120,8 @@ export default function App() {
         <Route path="/webhooks" element={<WebhooksPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/audit" element={<AuditPage />} />
+        <Route path="/backup-schedules" element={<BackupSchedulesPage />} />
+        <Route path="/system-settings" element={<SystemSettingsPage />} />
         <Route path="/license" element={<LicensePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

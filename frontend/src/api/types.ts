@@ -334,3 +334,36 @@ export interface PortForwardRule {
   enabled: boolean;
   createdAt: string;
 }
+
+export interface Setting {
+  key: string;
+  value: string;
+  updatedAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  userId?: string;
+  userEmail?: string;
+  action: string;
+  resourceType?: string;
+  resourceId?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface CronSchedule {
+  id: string;
+  name: string;
+  targetType: string;
+  targetId: string;
+  nodeId?: string;
+  cronExpr: string;
+  keepLast: number;
+  enabled: boolean;
+  lastRunAt?: string;
+  nextRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}

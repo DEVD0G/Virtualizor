@@ -22,9 +22,11 @@ const nav = [
   { to: '/tasks', label: 'Jobs', perm: 'node.read' },
   { to: '/webhooks', label: 'Webhooks', perm: 'node.read' },
   { to: '/alerts', label: 'Alert-Regeln', perm: 'node.read' },
+  { to: '/backup-schedules', label: 'Backup-Zeitpläne', perm: 'vm.manage' },
   { to: '/api-keys', label: 'API-Keys', perm: null },
   { to: '/users', label: 'Benutzer & Rollen', perm: 'user.manage' },
   { to: '/audit', label: 'Audit-Log', perm: 'audit.read' },
+  { to: '/system-settings', label: 'Systemeinstellungen', perm: 'user.manage' },
   { to: '/license', label: 'Lizenz', perm: 'license.read' },
 ];
 

@@ -588,6 +588,36 @@ model AlertRule {
   @@map("alert_rules")
 }
 
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ─── Cron Schedules (cross-resource backup schedules) ────────────────────────
+
+model CronSchedule {
+  id         String    @id @default(cuid())
+  name       String
+  targetType String
+  targetId   String
+  nodeId     String?
+  cronExpr   String
+  keepLast   Int       @default(3)
+  enabled    Boolean   @default(true)
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([targetId])
+  @@map("cron_schedules")
+}
+
 // ─── Audit ───────────────────────────────────────────────────────────────────
 
 model AuditLog {
