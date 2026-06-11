@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, BackupSchedule, FirewallRule, Iso, Node, Snapshot, Vm } from '../api/types';
+import { Backup, BackupSchedule, FirewallRule, Iso, Network, Node, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import StatusBadge from '../components/StatusBadge';
@@ -24,6 +24,9 @@ export default function VmDetailPage() {
   const [showMigrate, setShowMigrate] = useState(false);
   const [migrateNodeId, setMigrateNodeId] = useState('');
   const [scheduleForm, setScheduleForm] = useState({ intervalHours: '24', targetDir: '' });
+  const [showAddNic, setShowAddNic] = useState(false);
+  const [addNicNetworkId, setAddNicNetworkId] = useState('');
+  const [addNicPoolId, setAddNicPoolId] = useState('');
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
     action: 'accept' as 'accept' | 'drop',
@@ -67,6 +70,11 @@ export default function VmDetailPage() {
   const { data: isos } = useQuery({
     queryKey: ['storage', 'isos'],
     queryFn: () => api<Iso[]>('/storage/isos'),
+    enabled: can('vm.manage'),
+  });
+  const { data: networks } = useQuery({
+    queryKey: ['networks'],
+    queryFn: () => api<Network[]>('/networks'),
     enabled: can('vm.manage'),
   });
 
@@ -305,38 +313,93 @@ export default function VmDetailPage() {
           )}
         </div>
 
-        <div className="card">
-          <h2 className="mb-3 font-semibold">Disks & Netzwerk</h2>
-          <ul className="space-y-2 text-sm">
-            {vm.disks.map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">{d.name}</span>
-                <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
-                {can('vm.create') && vm.state === 'stopped' && (
-                  <button
-                    className="btn-secondary text-xs"
-                    onClick={() => {
-                      const n = prompt(`Neue Größe für ${d.name} (GB, aktuell ${d.sizeGb})`);
-                      if (!n) return;
-                      const newSize = parseInt(n);
-                      if (isNaN(newSize) || newSize <= d.sizeGb) return alert('Neue Größe muss größer als aktuell sein');
-                      action.mutate({ path: `/vms/${vm.id}/disks/${d.id}`, method: 'PATCH', body: { newSizeGb: newSize } });
-                    }}
-                  >
-                    Resize
-                  </button>
-                )}
-              </li>
-            ))}
-            {vm.nics.map((n) => (
-              <li key={n.id} className="flex justify-between">
-                <span className="text-slate-500">{n.network.name}</span>
-                <span className="font-mono text-xs">
-                  {n.mac} {n.ips[0] ? `· ${n.ips[0].address}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <div className="card space-y-4">
+          <div>
+            <h2 className="mb-3 font-semibold">Disks</h2>
+            <ul className="space-y-2 text-sm">
+              {vm.disks.map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">{d.name}</span>
+                  <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
+                  {can('vm.create') && vm.state === 'stopped' && (
+                    <button
+                      className="btn-secondary text-xs"
+                      onClick={() => {
+                        const n = prompt(`Neue Größe für ${d.name} (GB, aktuell ${d.sizeGb})`);
+                        if (!n) return;
+                        const newSize = parseInt(n);
+                        if (isNaN(newSize) || newSize <= d.sizeGb) return alert('Neue Größe muss größer als aktuell sein');
+                        action.mutate({ path: `/vms/${vm.id}/disks/${d.id}`, method: 'PATCH', body: { newSizeGb: newSize } });
+                      }}
+                    >
+                      Resize
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Netzwerk-Interfaces</h2>
+              {can('vm.manage') && (
+                <button className="btn-secondary text-xs" onClick={() => { setAddNicNetworkId(''); setAddNicPoolId(''); setShowAddNic(!showAddNic); }}>
+                  {showAddNic ? 'Abbrechen' : '+ NIC'}
+                </button>
+              )}
+            </div>
+
+            {showAddNic && (
+              <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <select className="input flex-1 min-w-[160px]" value={addNicNetworkId}
+                  onChange={(e) => { setAddNicNetworkId(e.target.value); setAddNicPoolId(''); }}>
+                  <option value="">Netzwerk wählen…</option>
+                  {networks?.map((n) => <option key={n.id} value={n.id}>{n.name} ({n.mode})</option>)}
+                </select>
+                {addNicNetworkId && (() => {
+                  const net = networks?.find((n) => n.id === addNicNetworkId);
+                  return net && net.ipPools.length > 0 ? (
+                    <select className="input flex-1 min-w-[160px]" value={addNicPoolId}
+                      onChange={(e) => setAddNicPoolId(e.target.value)}>
+                      <option value="">Kein IP-Pool (manuell)</option>
+                      {net.ipPools.map((p) => <option key={p.id} value={p.id}>{p.cidr}</option>)}
+                    </select>
+                  ) : null;
+                })()}
+                <button className="btn-primary text-xs" disabled={!addNicNetworkId || action.isPending}
+                  onClick={() => {
+                    action.mutate({
+                      path: `/vms/${vm.id}/nics`,
+                      body: { networkId: addNicNetworkId, ...(addNicPoolId ? { ipPoolId: addNicPoolId } : {}) },
+                    });
+                    setShowAddNic(false);
+                  }}>
+                  NIC hinzufügen
+                </button>
+              </div>
+            )}
+
+            <ul className="space-y-2 text-sm">
+              {vm.nics.map((nic) => (
+                <li key={nic.id} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 shrink-0">{nic.network.name}</span>
+                  <span className="font-mono text-xs flex-1 truncate">{nic.mac}{nic.ips[0] ? ` · ${nic.ips[0].address}` : ''}</span>
+                  {can('vm.manage') && vm.nics.length > 1 && (
+                    <button className="btn-danger text-xs shrink-0"
+                      disabled={action.isPending}
+                      onClick={() => {
+                        if (confirm(`NIC ${nic.mac} entfernen?`)) {
+                          action.mutate({ path: `/vms/${vm.id}/nics/${nic.id}`, method: 'DELETE' });
+                        }
+                      }}>
+                      Entfernen
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 

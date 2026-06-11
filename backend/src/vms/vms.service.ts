@@ -511,6 +511,35 @@ export class VmsService implements TaskHandler, OnModuleInit {
     this.webhooks.fire(`vm.${state}`, { vmId, vmName, state }).catch(() => {});
   }
 
+  async addNic(user: AuthenticatedUser, vmId: string, networkId: string, ipPoolId?: string) {
+    const vm = await this.get(user, vmId);
+    const network = await this.prisma.network.findUnique({ where: { id: networkId } });
+    if (!network) throw new NotFoundException('Netzwerk nicht gefunden');
+    return this.prisma.$transaction(async (tx) => {
+      const nic = await tx.nic.create({
+        data: { vmId: vm.id, networkId, mac: this.generateMac() },
+      });
+      if (ipPoolId) {
+        const ip = await tx.ipAddress.findFirst({
+          where: { poolId: ipPoolId, nicId: null, reserved: false },
+        });
+        if (!ip) throw new BadRequestException('Kein freies IP im Pool verfügbar');
+        await tx.ipAddress.update({ where: { id: ip.id }, data: { nicId: nic.id } });
+      }
+      return tx.nic.findUnique({ where: { id: nic.id }, include: { network: true, ips: true } });
+    });
+  }
+
+  async removeNic(user: AuthenticatedUser, vmId: string, nicId: string) {
+    const vm = await this.get(user, vmId);
+    const nic = await this.prisma.nic.findFirst({ where: { id: nicId, vmId: vm.id } });
+    if (!nic) throw new NotFoundException('NIC nicht gefunden');
+    const nicCount = await this.prisma.nic.count({ where: { vmId: vm.id } });
+    if (nicCount <= 1) throw new BadRequestException('Letzte NIC kann nicht entfernt werden');
+    await this.prisma.ipAddress.updateMany({ where: { nicId }, data: { nicId: null } });
+    await this.prisma.nic.delete({ where: { id: nicId } });
+  }
+
   private generateMac(): string {
     // Lokal verwaltete Unicast-MAC: 52:54:00 (QEMU-Prefix) + 3 Zufallsbytes
     const suffix = randomBytes(3);

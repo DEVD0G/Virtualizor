@@ -77,6 +77,12 @@ export class NodesController {
     return this.nodes.get(id);
   }
 
+  @Post(':id/drain')
+  @RequirePermissions('node.manage')
+  drain(@Param('id') id: string) {
+    return this.nodes.drain(id);
+  }
+
   @Delete(':id')
   @RequirePermissions('node.manage')
   remove(@Param('id') id: string) {

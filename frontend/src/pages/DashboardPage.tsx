@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { MetricSample, Node, Task, Vm } from '../api/types';
+import { Container, MetricSample, Node, Task, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { useUiMode } from '../contexts/UiModeContext';
 import Sparkline from '../components/Sparkline';
@@ -84,6 +84,12 @@ export default function DashboardPage() {
     enabled: can('node.read'),
     refetchInterval: 30_000,
   });
+  const { data: containers } = useQuery({
+    queryKey: ['containers'],
+    queryFn: () => api<Container[]>('/containers'),
+    enabled: can('vm.read'),
+    refetchInterval: 30_000,
+  });
   const { data: recentTasks } = useQuery({
     queryKey: ['tasks', 'recent'],
     queryFn: () => api<Task[]>('/tasks?limit=10'),
@@ -93,6 +99,7 @@ export default function DashboardPage() {
 
   const running = vms?.filter((v) => v.state === 'running').length ?? 0;
   const online  = nodes?.filter((n) => n.state === 'online').length ?? 0;
+  const ctRunning = containers?.filter((c) => c.state === 'running').length ?? 0;
 
   function openAi(text?: string) {
     window.dispatchEvent(new CustomEvent('vcp:ai:open', { detail: { prompt: text ?? aiInput } }));
@@ -139,6 +146,11 @@ export default function DashboardPage() {
         {can('node.read') && <Stat label="Nodes online" value={online} accent />}
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Container gesamt" value={containers?.length ?? '—'} />
+        <Stat label="Container laufend" value={ctRunning} accent />
+      </div>
+
       {/* Node utilisation cards */}
       {can('node.read') && nodes && nodes.filter((n) => n.state === 'online').length > 0 && (
         <div>
@@ -180,32 +192,58 @@ export default function DashboardPage() {
           </table>
         </div>
 
-        {/* Recent Tasks */}
-        {can('node.read') && (
-          <div className="card">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold">Letzte Jobs</h2>
-              <Link to="/tasks" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
-            </div>
-            <div className="space-y-2">
-              {recentTasks?.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="font-mono text-xs text-slate-500 w-32 truncate">{t.kind}</span>
-                  <span className="flex-1 truncate text-slate-700 dark:text-slate-300 text-xs">
-                    {t.resourceType}/{t.resourceId.slice(0, 8)}
-                  </span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${taskStateColors[t.state] ?? ''}`}>
-                    {t.state}
-                  </span>
-                </div>
-              ))}
-              {!recentTasks?.length && (
-                <p className="text-center text-slate-400 text-sm">Keine Jobs</p>
-              )}
-            </div>
+        {/* Recent Containers */}
+        <div className="card">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Neueste Container</h2>
+            <Link to="/containers" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
           </div>
-        )}
+          <table className="table-base">
+            <thead>
+              <tr><th>Name</th><th>Status</th><th>Node</th><th>Ressourcen</th></tr>
+            </thead>
+            <tbody>
+              {containers?.slice(0, 5).map((ct) => (
+                <tr key={ct.id}>
+                  <td><Link className="font-medium text-brand-500 hover:underline" to={`/containers/${ct.id}`}>{ct.name}</Link></td>
+                  <td><StatusBadge status={ct.state} /></td>
+                  <td>{ct.node.name}</td>
+                  <td>{ct.vcpus} vCPU · {(ct.memoryMb / 1024).toFixed(1)} GiB</td>
+                </tr>
+              ))}
+              {!containers?.length && (
+                <tr><td colSpan={4} className="text-center text-slate-400">Noch keine Container</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Recent Tasks */}
+      {can('node.read') && (
+        <div className="card">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Letzte Jobs</h2>
+            <Link to="/tasks" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
+          </div>
+          <div className="space-y-2">
+            {recentTasks?.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-mono text-xs text-slate-500 w-32 truncate">{t.kind}</span>
+                <span className="flex-1 truncate text-slate-700 dark:text-slate-300 text-xs">
+                  {t.resourceType}/{t.resourceId.slice(0, 8)}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${taskStateColors[t.state] ?? ''}`}>
+                  {t.state}
+                </span>
+              </div>
+            ))}
+            {!recentTasks?.length && (
+              <p className="text-center text-slate-400 text-sm">Keine Jobs</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

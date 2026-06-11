@@ -41,7 +41,7 @@ export interface Vm {
   node: { id: string; name: string };
   owner: { id: string; email: string; name: string };
   disks: { id: string; name: string; sizeGb: number; storagePool: { id: string; name: string; type: string } }[];
-  nics: { id: string; mac: string; network: { name: string }; ips: { address: string }[] }[];
+  nics: { id: string; mac: string; networkId: string; network: { id: string; name: string }; ips: { address: string }[] }[];
   mountedIso: { id: string; name: string } | null;
 }
 

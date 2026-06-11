@@ -38,6 +38,11 @@ class MountIsoDto {
   @IsUUID() isoId: string;
 }
 
+class AddNicDto {
+  @IsUUID() networkId: string;
+  @IsOptional() @IsUUID() ipPoolId?: string;
+}
+
 class UpdateVmMetaDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
@@ -108,6 +113,19 @@ export class VmsController {
   @RequirePermissions('vm.manage')
   unmountIso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.vms.unmountIso(user, id);
+  }
+
+  @Post(':id/nics')
+  @RequirePermissions('vm.manage')
+  addNic(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: AddNicDto) {
+    return this.vms.addNic(user, id, dto.networkId, dto.ipPoolId);
+  }
+
+  @Delete(':id/nics/:nicId')
+  @HttpCode(204)
+  @RequirePermissions('vm.manage')
+  removeNic(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Param('nicId') nicId: string) {
+    return this.vms.removeNic(user, id, nicId);
   }
 
   @Patch(':id/meta')
