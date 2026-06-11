@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { DiagnosticsResult } from '../api/types';
 
 interface Props {
-  resourceType: 'vm' | 'node';
+  resourceType: 'vm' | 'node' | 'container';
   resourceId: string;
 }
 
@@ -127,7 +127,8 @@ export default function AiDiagnoseCard({ resourceType, resourceId }: Props) {
           <button
             className="text-xs text-brand-500 hover:text-brand-600 hover:underline"
             onClick={() => {
-              const prompt = `Analysiere ${resourceType === 'vm' ? 'VM' : 'Node'} ${resourceId} und gib mir detaillierte Empfehlungen.`;
+              const label = resourceType === 'vm' ? 'VM' : resourceType === 'container' ? 'Container' : 'Node';
+              const prompt = `Analysiere ${label} ${resourceId} und gib mir detaillierte Empfehlungen.`;
               window.dispatchEvent(new CustomEvent('vcp:ai:open', { detail: { prompt } }));
             }}
           >

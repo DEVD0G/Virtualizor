@@ -48,6 +48,7 @@ export interface FullState {
   installId: string;
   fingerprint: string;
   licenseState: LicenseState;
+  apiConfigured: boolean;
 }
 
 @Injectable()
@@ -100,6 +101,7 @@ export class LicenseService implements OnModuleInit {
       installId,
       fingerprint,
       licenseState: this.state,
+      apiConfigured: Boolean(this.apiUrl && this.publicKey),
     };
   }
 
@@ -158,6 +160,27 @@ export class LicenseService implements OnModuleInit {
   }
 
   // ─── Activation & Validation ───────────────────────────────────────────────
+
+  /**
+   * Self-Hosted-Aktivierung: entsperrt das System OHNE License-Server.
+   * Nur erlaubt, wenn keine License API konfiguriert ist — sobald
+   * LICENSE_API_URL + LICENSE_PUBLIC_KEY gesetzt sind, ist der normale
+   * Aktivierungsweg verpflichtend.
+   */
+  async activateSelfHosted() {
+    if (this.apiUrl && this.publicKey) {
+      throw new BadRequestException(
+        'License API ist konfiguriert — bitte mit Lizenzschlüssel aktivieren.',
+      );
+    }
+    const phase = await this.systemState.getPhase();
+    if (phase === InstallPhase.active) return this.getState();
+
+    await this.systemState.setActive('');
+    this.state = this.emptyState('unconfigured');
+    this.logger.log('System im Self-Hosted-Modus aktiviert (keine License API konfiguriert).');
+    return this.getState();
+  }
 
   async activate(licenseKey: string) {
     if (!this.apiUrl || !this.publicKey) {

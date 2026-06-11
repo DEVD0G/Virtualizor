@@ -9,6 +9,7 @@ interface SystemStateResponse {
     status: string;
     tier: string | null;
   };
+  apiConfigured: boolean;
 }
 
 export default function ActivationPage() {
@@ -104,6 +105,28 @@ export default function ActivationPage() {
       setSuccess(true);
     } catch (err: any) {
       setActivateError(err.message ?? 'Unknown error');
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  // ─── Self-Hosted activation (no license server configured) ─────────────────
+
+  async function handleSelfHosted() {
+    if (activating) return;
+    setActivating(true);
+    setActivateError(null);
+
+    try {
+      const res = await fetch('/api/v1/license/activate-self-hosted', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const message: string = body?.message ?? `Aktivierung fehlgeschlagen (HTTP ${res.status})`;
+        throw new Error(Array.isArray(message) ? message.join('; ') : message);
+      }
+      setSuccess(true);
+    } catch (err: any) {
+      setActivateError(err.message ?? 'Unbekannter Fehler');
     } finally {
       setActivating(false);
     }
@@ -250,7 +273,36 @@ export default function ActivationPage() {
           </div>
         </div>
 
+        {/* Self-Hosted mode — no license server configured */}
+        {!systemState!.apiConfigured && (
+          <div className="card space-y-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">
+              Self-Hosted-Modus
+            </h2>
+            <p className="text-sm text-slate-400">
+              Es ist kein License-Server konfiguriert (<code className="text-xs">LICENSE_API_URL</code> /{' '}
+              <code className="text-xs">LICENSE_PUBLIC_KEY</code> in der <code className="text-xs">.env</code> leer).
+              Das Panel kann ohne Lizenz im Self-Hosted-Modus betrieben werden — ohne Limits und ohne
+              externe Validierung.
+            </p>
+            {activateError && (
+              <div className="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2">
+                <p className="text-sm text-red-400">{activateError}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn-primary w-full"
+              onClick={handleSelfHosted}
+              disabled={activating}
+            >
+              {activating ? 'Wird aktiviert…' : 'Im Self-Hosted-Modus fortfahren'}
+            </button>
+          </div>
+        )}
+
         {/* Activation form */}
+        {systemState!.apiConfigured && (
         <form onSubmit={handleActivate} className="card space-y-4">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">
             Lizenzschlüssel eingeben
@@ -289,12 +341,14 @@ export default function ActivationPage() {
             {activating ? 'Wird aktiviert…' : 'Aktivieren'}
           </button>
         </form>
+        )}
 
         {/* Footer */}
-        <p className="text-center text-xs text-slate-600">
-          License validation requires connection to{' '}
-          <span className="text-slate-500">license.vcp.io</span>
-        </p>
+        {systemState!.apiConfigured && (
+          <p className="text-center text-xs text-slate-600">
+            Die Lizenzvalidierung erfordert eine Verbindung zum konfigurierten License-Server.
+          </p>
+        )}
       </div>
     </div>
   );

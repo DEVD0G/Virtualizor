@@ -1,7 +1,7 @@
 import {
   Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query,
 } from '@nestjs/common';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
@@ -24,6 +24,28 @@ class ResizeVmDto {
 
 class ResizeDiskDto {
   @IsInt() @Min(1) @Max(16384) newSizeGb: number;
+}
+
+class CloneVmDto {
+  @IsString() newName: string;
+}
+
+class MigrateVmDto {
+  @IsUUID() targetNodeId: string;
+}
+
+class MountIsoDto {
+  @IsUUID() isoId: string;
+}
+
+class AddNicDto {
+  @IsUUID() networkId: string;
+  @IsOptional() @IsUUID() ipPoolId?: string;
+}
+
+class UpdateVmMetaDto {
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
 }
 
 class CreateFirewallRuleDto {
@@ -66,6 +88,50 @@ export class VmsController {
   @RequirePermissions('vm.delete')
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.vms.remove(user, id);
+  }
+
+  @Post(':id/clone')
+  @RequirePermissions('vm.create')
+  clone(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CloneVmDto) {
+    return this.vms.clone(user, id, dto.newName);
+  }
+
+  @Post(':id/migrate')
+  @RequirePermissions('vm.manage')
+  migrate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: MigrateVmDto) {
+    return this.vms.migrate(user, id, dto.targetNodeId);
+  }
+
+  @Post(':id/iso')
+  @RequirePermissions('vm.manage')
+  mountIso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: MountIsoDto) {
+    return this.vms.mountIso(user, id, dto.isoId);
+  }
+
+  @Delete(':id/iso')
+  @HttpCode(204)
+  @RequirePermissions('vm.manage')
+  unmountIso(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.vms.unmountIso(user, id);
+  }
+
+  @Post(':id/nics')
+  @RequirePermissions('vm.manage')
+  addNic(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: AddNicDto) {
+    return this.vms.addNic(user, id, dto.networkId, dto.ipPoolId);
+  }
+
+  @Delete(':id/nics/:nicId')
+  @HttpCode(204)
+  @RequirePermissions('vm.manage')
+  removeNic(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Param('nicId') nicId: string) {
+    return this.vms.removeNic(user, id, nicId);
+  }
+
+  @Patch(':id/meta')
+  @RequirePermissions('vm.manage')
+  updateMeta(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateVmMetaDto) {
+    return this.vms.updateMeta(user, id, dto);
   }
 
   @Post(':id/start')

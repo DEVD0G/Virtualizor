@@ -35,11 +35,14 @@ export interface Vm {
   vcpus: number;
   memoryMb: number;
   errorMsg: string | null;
+  tags: string[];
+  description: string | null;
   createdAt: string;
   node: { id: string; name: string };
   owner: { id: string; email: string; name: string };
-  disks: { id: string; name: string; sizeGb: number; storagePool: { name: string; type: string } }[];
-  nics: { id: string; mac: string; network: { name: string }; ips: { address: string }[] }[];
+  disks: { id: string; name: string; sizeGb: number; storagePool: { id: string; name: string; type: string } }[];
+  nics: { id: string; mac: string; networkId: string; network: { id: string; name: string }; ips: { address: string }[] }[];
+  mountedIso: { id: string; name: string } | null;
 }
 
 export interface Snapshot {
@@ -242,6 +245,51 @@ export interface DiagnosticsResult {
   recommendations: string[];
 }
 
+export interface ResourceQuota {
+  id: string;
+  roleId: string;
+  maxVms: number | null;
+  maxVcpus: number | null;
+  maxMemoryMb: number | null;
+  maxStorageGb: number | null;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  url: string;
+  secret: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  event: string;
+  statusCode: number | null;
+  success: boolean;
+  error: string | null;
+  deliveredAt: string;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  nodeId: string | null;
+  metric: 'cpu_percent' | 'mem_used_mb' | 'mem_percent';
+  threshold: number;
+  durationMinutes: number;
+  cooldownMinutes: number;
+  webhookId: string | null;
+  enabled: boolean;
+  firedAt: string | null;
+  createdAt: string;
+  node?: { id: string; name: string } | null;
+  webhook?: { id: string; name: string } | null;
+}
+
 export interface BackupSchedule {
   id: string;
   vmId: string;
@@ -250,5 +298,39 @@ export interface BackupSchedule {
   enabled: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
+  createdAt: string;
+}
+
+export interface Container {
+  id: string;
+  name: string;
+  state: 'provisioning' | 'stopped' | 'running' | 'error' | 'deleting';
+  vcpus: number;
+  memoryMb: number;
+  diskGb: number;
+  osTemplate: string;
+  ipAddress: string | null;
+  tags: string[];
+  description: string | null;
+  errorMsg: string | null;
+  createdAt: string;
+  node: { id: string; name: string };
+  owner: { id: string; email: string; name: string };
+}
+
+export interface Permission {
+  id: string;
+  description: string | null;
+}
+
+export interface PortForwardRule {
+  id: string;
+  networkId: string;
+  protocol: 'tcp' | 'udp';
+  externalPort: number;
+  internalIp: string;
+  internalPort: number;
+  description: string | null;
+  enabled: boolean;
   createdAt: string;
 }

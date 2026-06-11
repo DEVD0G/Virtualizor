@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { readFileSync } from 'fs';
 import { IncomingMessage } from 'http';
 import { TLSSocket, connect as tlsConnect } from 'tls';
@@ -15,6 +16,19 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     app.enableCors({ origin: true, credentials: true });
   }
+
+  // ─── OpenAPI / Swagger ───────────────────────────────────────────────────────
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('VCP API')
+      .setDescription('Virtualization Control Panel – REST API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
+
   await app.listen(parseInt(process.env.PORT ?? '3000', 10), '0.0.0.0');
 
   // ─── WebSocket console proxy ─────────────────────────────────────────────────

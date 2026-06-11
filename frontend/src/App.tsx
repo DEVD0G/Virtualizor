@@ -4,10 +4,14 @@ import { useAuth } from './auth/AuthContext';
 import Layout from './components/Layout';
 import ActivationPage from './pages/ActivationPage';
 import AiAssistantPage from './pages/AiAssistantPage';
+import AlertsPage from './pages/AlertsPage';
 import ApiKeysPage from './pages/ApiKeysPage';
+import WebhooksPage from './pages/WebhooksPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
 import TasksPage from './pages/TasksPage';
+import ContainerDetailPage from './pages/ContainerDetailPage';
+import ContainersPage from './pages/ContainersPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
@@ -99,6 +103,8 @@ export default function App() {
         <Route path="/vms" element={<VmListPage />} />
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
+        <Route path="/containers" element={<ContainersPage />} />
+        <Route path="/containers/:id" element={<ContainerDetailPage />} />
         <Route path="/nodes" element={<NodesPage />} />
         <Route path="/nodes/:id" element={<NodeDetailPage />} />
         <Route path="/networks" element={<NetworksPage />} />
@@ -107,6 +113,8 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/webhooks" element={<WebhooksPage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/license" element={<LicensePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

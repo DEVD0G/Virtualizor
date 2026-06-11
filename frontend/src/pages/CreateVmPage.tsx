@@ -17,6 +17,8 @@ export default function CreateVmPage() {
   const [ipPoolId, setIpPoolId] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [sshKey, setSshKey] = useState('');
+  const [tags, setTags] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
 
   const { data: nodes } = useQuery({ queryKey: ['nodes'], queryFn: () => api<Node[]>('/nodes') });
@@ -38,9 +40,11 @@ export default function CreateVmPage() {
           memoryMb: memoryGb * 1024,
           disks: [{ sizeGb: diskGb }],
           nics: [{ networkId, ...(ipPoolId ? { ipPoolId } : {}) }],
-          templateId,
+          ...(templateId ? { templateId } : {}),
           ...(nodeId ? { nodeId } : {}),
           cloudInit: sshKey ? { sshKeys: [sshKey.trim()] } : undefined,
+          ...(tags ? { tags: tags.split(',').map((t) => t.trim()).filter(Boolean) } : {}),
+          ...(description ? { description } : {}),
         },
       }),
     onSuccess: (data) => navigate(`/vms/${data.vm.id}`),
@@ -50,6 +54,7 @@ export default function CreateVmPage() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!networkId) { setError('Bitte ein Netzwerk wählen.'); return; }
     create.mutate();
   };
 
@@ -62,7 +67,7 @@ export default function CreateVmPage() {
         <div>
           <label className="mb-1 block text-sm font-medium">Name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)}
-            pattern="[a-z0-9][a-z0-9-]{2,62}" placeholder="web-01" required />
+            pattern="[a-z0-9][-a-z0-9]{2,62}" placeholder="web-01" required />
           <p className="mt-1 text-xs text-slate-500">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
         </div>
 
@@ -125,6 +130,19 @@ export default function CreateVmPage() {
           <label className="mb-1 block text-sm font-medium">SSH Public Key (cloud-init)</label>
           <textarea className="input font-mono text-xs" rows={3} value={sshKey}
             onChange={(e) => setSshKey(e.target.value)} placeholder="ssh-ed25519 AAAA…" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Tags (optional, kommagetrennt)</label>
+            <input className="input" placeholder="web, prod, nginx" value={tags}
+              onChange={(e) => setTags(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Beschreibung (optional)</label>
+            <input className="input" placeholder="Kurze Beschreibung der VM" value={description}
+              onChange={(e) => setDescription(e.target.value)} />
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}

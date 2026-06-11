@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, Length, MinLength } from 'class-validator';
 import { AuthService, AuthenticatedUser } from './auth.service';
@@ -21,6 +21,15 @@ class TotpCompleteDto {
 
 class TotpCodeDto {
   @IsString() @Length(6, 6) code: string;
+}
+
+class ChangePasswordDto {
+  @IsString() currentPassword: string;
+  @IsString() @MinLength(10) newPassword: string;
+}
+
+class UpdateProfileDto {
+  @IsString() @MinLength(1) name: string;
 }
 
 @Controller('auth')
@@ -74,5 +83,34 @@ export class AuthController {
   @Delete('totp')
   totpDisable(@CurrentUser() user: AuthenticatedUser, @Body() dto: TotpCodeDto) {
     return this.auth.totpDisable(user.id, dto.code);
+  }
+
+  @Post('change-password')
+  changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Patch('me')
+  updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(user.id, dto.name);
+  }
+
+  // ─── Session management ──────────────────────────────────────────────────────
+
+  @Get('sessions')
+  listSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.listSessions(user.id);
+  }
+
+  @Delete('sessions')
+  @HttpCode(204)
+  revokeAllSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.revokeAllSessions(user.id);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(204)
+  revokeSession(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.auth.revokeSession(user.id, id);
   }
 }

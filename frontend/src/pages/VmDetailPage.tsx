@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, BackupSchedule, FirewallRule, Snapshot, Vm } from '../api/types';
+import { Backup, BackupSchedule, FirewallRule, Iso, Network, Node, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import StatusBadge from '../components/StatusBadge';
@@ -17,7 +17,16 @@ export default function VmDetailPage() {
   const [consoleWsUrl, setConsoleWsUrl] = useState<string | null>(null);
   const [showResize, setShowResize] = useState(false);
   const [resizeForm, setResizeForm] = useState({ vcpus: '', memoryMb: '' });
+  const [showMeta, setShowMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ description: '', tags: '' });
+  const [showClone, setShowClone] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [showMigrate, setShowMigrate] = useState(false);
+  const [migrateNodeId, setMigrateNodeId] = useState('');
   const [scheduleForm, setScheduleForm] = useState({ intervalHours: '24', targetDir: '' });
+  const [showAddNic, setShowAddNic] = useState(false);
+  const [addNicNetworkId, setAddNicNetworkId] = useState('');
+  const [addNicPoolId, setAddNicPoolId] = useState('');
   const [fwForm, setFwForm] = useState({
     direction: 'in' as 'in' | 'out',
     action: 'accept' as 'accept' | 'drop',
@@ -53,6 +62,21 @@ export default function VmDetailPage() {
     queryFn: () => api<BackupSchedule[]>(`/vms/${id}/backup-schedules`),
     enabled: can('backup.read'),
   });
+  const { data: nodes } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: () => api<Node[]>('/nodes'),
+    enabled: can('node.read') && showMigrate,
+  });
+  const { data: isos } = useQuery({
+    queryKey: ['storage', 'isos'],
+    queryFn: () => api<Iso[]>('/storage/isos'),
+    enabled: can('vm.manage'),
+  });
+  const { data: networks } = useQuery({
+    queryKey: ['networks'],
+    queryFn: () => api<Network[]>('/networks'),
+    enabled: can('vm.manage'),
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['vms'] });
@@ -83,6 +107,65 @@ export default function VmDetailPage() {
       {consoleWsUrl && (
         <VncConsole wsUrl={consoleWsUrl} onClose={() => setConsoleWsUrl(null)} />
       )}
+      {showClone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-semibold">VM klonen</h3>
+            <label className="label">Name der neuen VM</label>
+            <input
+              className="input mb-4"
+              value={cloneName}
+              onChange={(e) => setCloneName(e.target.value.replace(/[^a-z0-9-]/g, ''))}
+              pattern="[a-z0-9][-a-z0-9]{2,62}"
+              placeholder="neue-vm-name"
+            />
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!/^[a-z0-9][-a-z0-9]{2,62}$/.test(cloneName) || action.isPending}
+                onClick={() => {
+                  action.mutate({ path: `/vms/${vm.id}/clone`, body: { newName: cloneName } });
+                  setShowClone(false);
+                }}
+              >
+                Klonen starten
+              </button>
+              <button className="btn-secondary" onClick={() => setShowClone(false)}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showMigrate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-semibold">VM migrieren</h3>
+            <p className="mb-3 text-sm text-slate-500">Ziel-Node wählen (VM muss gestoppt sein)</p>
+            <select
+              className="input mb-4"
+              value={migrateNodeId}
+              onChange={(e) => setMigrateNodeId(e.target.value)}
+            >
+              <option value="">Node auswählen…</option>
+              {nodes?.filter((n) => n.state === 'online' && n.id !== vm.node.id).map((n) => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!migrateNodeId || action.isPending}
+                onClick={() => {
+                  action.mutate({ path: `/vms/${vm.id}/migrate`, body: { targetNodeId: migrateNodeId } });
+                  setShowMigrate(false);
+                }}
+              >
+                Migration starten
+              </button>
+              <button className="btn-secondary" onClick={() => setShowMigrate(false)}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -101,6 +184,22 @@ export default function VmDetailPage() {
               <button className="btn-secondary" onClick={() => action.mutate({ path: `/vms/${vm.id}/restart` })}>Restart</button>
               <button className="btn-secondary" onClick={() => action.mutate({ path: `/vms/${vm.id}/stop` })}>Stop</button>
             </>
+          )}
+          {can('vm.create') && vm.state === 'stopped' && (
+            <button className="btn-secondary" onClick={() => {
+              setCloneName(`${vm.name}-clone`);
+              setShowClone(true);
+            }}>
+              Klonen
+            </button>
+          )}
+          {can('vm.manage') && vm.state === 'stopped' && (
+            <button className="btn-secondary" onClick={() => {
+              setMigrateNodeId('');
+              setShowMigrate(true);
+            }}>
+              Migrieren
+            </button>
           )}
           {can('vm.delete') && (
             <button
@@ -168,40 +267,139 @@ export default function VmDetailPage() {
               </button>
             </div>
           )}
+
+          {/* Tags & Description */}
+          {(vm.description || (vm.tags && vm.tags.length > 0) || showMeta) && !showMeta && (
+            <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800 text-sm space-y-2">
+              {vm.description && <p className="text-slate-600 dark:text-slate-400 italic">{vm.description}</p>}
+              {vm.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {vm.tags.map((t) => (
+                    <span key={t} className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {can('vm.manage') && !showMeta && (
+            <button className="mt-3 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              onClick={() => { setMetaForm({ description: vm.description ?? '', tags: vm.tags.join(', ') }); setShowMeta(true); }}>
+              Beschreibung & Tags bearbeiten
+            </button>
+          )}
+          {showMeta && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div>
+                <label className="label">Beschreibung</label>
+                <input className="input" value={metaForm.description}
+                  onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Tags (kommagetrennt)</label>
+                <input className="input" placeholder="web, prod, nginx" value={metaForm.tags}
+                  onChange={(e) => setMetaForm({ ...metaForm, tags: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1" onClick={() => {
+                  const tags = metaForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
+                  action.mutate({ path: `/vms/${vm.id}/meta`, method: 'PATCH', body: { description: metaForm.description || null, tags } });
+                  setShowMeta(false);
+                }}>
+                  Speichern
+                </button>
+                <button className="btn-secondary" onClick={() => setShowMeta(false)}>Abbrechen</button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="card">
-          <h2 className="mb-3 font-semibold">Disks & Netzwerk</h2>
-          <ul className="space-y-2 text-sm">
-            {vm.disks.map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">{d.name}</span>
-                <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
-                {can('vm.create') && vm.state === 'stopped' && (
-                  <button
-                    className="btn-secondary text-xs"
-                    onClick={() => {
-                      const n = prompt(`Neue Größe für ${d.name} (GB, aktuell ${d.sizeGb})`);
-                      if (!n) return;
-                      const newSize = parseInt(n);
-                      if (isNaN(newSize) || newSize <= d.sizeGb) return alert('Neue Größe muss größer als aktuell sein');
-                      action.mutate({ path: `/vms/${vm.id}/disks/${d.id}`, method: 'PATCH', body: { newSizeGb: newSize } });
-                    }}
-                  >
-                    Resize
-                  </button>
-                )}
-              </li>
-            ))}
-            {vm.nics.map((n) => (
-              <li key={n.id} className="flex justify-between">
-                <span className="text-slate-500">{n.network.name}</span>
-                <span className="font-mono text-xs">
-                  {n.mac} {n.ips[0] ? `· ${n.ips[0].address}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <div className="card space-y-4">
+          <div>
+            <h2 className="mb-3 font-semibold">Disks</h2>
+            <ul className="space-y-2 text-sm">
+              {vm.disks.map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">{d.name}</span>
+                  <span className="flex-1">{d.sizeGb} GB · {d.storagePool.name} ({d.storagePool.type})</span>
+                  {can('vm.create') && vm.state === 'stopped' && (
+                    <button
+                      className="btn-secondary text-xs"
+                      onClick={() => {
+                        const n = prompt(`Neue Größe für ${d.name} (GB, aktuell ${d.sizeGb})`);
+                        if (!n) return;
+                        const newSize = parseInt(n);
+                        if (isNaN(newSize) || newSize <= d.sizeGb) return alert('Neue Größe muss größer als aktuell sein');
+                        action.mutate({ path: `/vms/${vm.id}/disks/${d.id}`, method: 'PATCH', body: { newSizeGb: newSize } });
+                      }}
+                    >
+                      Resize
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Netzwerk-Interfaces</h2>
+              {can('vm.manage') && (
+                <button className="btn-secondary text-xs" onClick={() => { setAddNicNetworkId(''); setAddNicPoolId(''); setShowAddNic(!showAddNic); }}>
+                  {showAddNic ? 'Abbrechen' : '+ NIC'}
+                </button>
+              )}
+            </div>
+
+            {showAddNic && (
+              <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <select className="input flex-1 min-w-[160px]" value={addNicNetworkId}
+                  onChange={(e) => { setAddNicNetworkId(e.target.value); setAddNicPoolId(''); }}>
+                  <option value="">Netzwerk wählen…</option>
+                  {networks?.map((n) => <option key={n.id} value={n.id}>{n.name} ({n.mode})</option>)}
+                </select>
+                {addNicNetworkId && (() => {
+                  const net = networks?.find((n) => n.id === addNicNetworkId);
+                  return net && net.ipPools.length > 0 ? (
+                    <select className="input flex-1 min-w-[160px]" value={addNicPoolId}
+                      onChange={(e) => setAddNicPoolId(e.target.value)}>
+                      <option value="">Kein IP-Pool (manuell)</option>
+                      {net.ipPools.map((p) => <option key={p.id} value={p.id}>{p.cidr}</option>)}
+                    </select>
+                  ) : null;
+                })()}
+                <button className="btn-primary text-xs" disabled={!addNicNetworkId || action.isPending}
+                  onClick={() => {
+                    action.mutate({
+                      path: `/vms/${vm.id}/nics`,
+                      body: { networkId: addNicNetworkId, ...(addNicPoolId ? { ipPoolId: addNicPoolId } : {}) },
+                    });
+                    setShowAddNic(false);
+                  }}>
+                  NIC hinzufügen
+                </button>
+              </div>
+            )}
+
+            <ul className="space-y-2 text-sm">
+              {vm.nics.map((nic) => (
+                <li key={nic.id} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500 shrink-0">{nic.network.name}</span>
+                  <span className="font-mono text-xs flex-1 truncate">{nic.mac}{nic.ips[0] ? ` · ${nic.ips[0].address}` : ''}</span>
+                  {can('vm.manage') && vm.nics.length > 1 && (
+                    <button className="btn-danger text-xs shrink-0"
+                      disabled={action.isPending}
+                      onClick={() => {
+                        if (confirm(`NIC ${nic.mac} entfernen?`)) {
+                          action.mutate({ path: `/vms/${vm.id}/nics/${nic.id}`, method: 'DELETE' });
+                        }
+                      }}>
+                      Entfernen
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -234,7 +432,18 @@ export default function VmDetailPage() {
                       : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
                     }`}>{b.state}</span>
                   </td>
-                  <td className="text-right">
+                  <td className="text-right space-x-1">
+                    {can('backup.manage') && b.state === 'completed' && (
+                      <button className="btn-secondary text-xs"
+                        disabled={action.isPending}
+                        onClick={() => {
+                          if (confirm('VM aus diesem Backup wiederherstellen? Die VM wird dabei gestoppt.')) {
+                            action.mutate({ path: `/vms/${vm.id}/backups/${b.id}/restore` });
+                          }
+                        }}>
+                        Wiederherstellen
+                      </button>
+                    )}
                     {can('backup.manage') && (
                       <button className="btn-danger text-xs"
                         onClick={() => action.mutate({ path: `/vms/${vm.id}/backups/${b.id}`, method: 'DELETE' })}>
@@ -317,6 +526,51 @@ export default function VmDetailPage() {
               <p className="text-sm text-slate-400">Keine Zeitpläne konfiguriert</p>
             )}
           </div>
+        </div>
+      )}
+
+      {can('vm.manage') && (
+        <div className="card">
+          <h2 className="mb-3 font-semibold">ISO-Laufwerk</h2>
+          {vm.mountedIso ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">Eingehängt</span>
+                <span className="font-mono text-sm">{vm.mountedIso.name}</span>
+              </div>
+              <button
+                className="btn-secondary text-xs"
+                disabled={action.isPending}
+                onClick={() => action.mutate({ path: `/vms/${vm.id}/iso`, method: 'DELETE' })}
+              >
+                Aushängen
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <select
+                className="input flex-1"
+                defaultValue=""
+                id={`iso-select-${vm.id}`}
+              >
+                <option value="">ISO auswählen…</option>
+                {isos?.map((iso) => (
+                  <option key={iso.id} value={iso.id}>{iso.name}</option>
+                ))}
+              </select>
+              <button
+                className="btn-secondary text-sm"
+                disabled={action.isPending}
+                onClick={() => {
+                  const sel = document.getElementById(`iso-select-${vm.id}`) as HTMLSelectElement;
+                  if (!sel.value) return;
+                  action.mutate({ path: `/vms/${vm.id}/iso`, method: 'POST', body: { isoId: sel.value } });
+                }}
+              >
+                Einhängen
+              </button>
+            </div>
+          )}
         </div>
       )}
 

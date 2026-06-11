@@ -22,6 +22,7 @@ const ALLOWED_PATHS_WHEN_LOCKED = new Set([
   '/api/v1/health',
   '/api/v1/license/system-state',
   '/api/v1/license/activate',
+  '/api/v1/license/activate-self-hosted',
 ]);
 
 /** How long (ms) to cache the phase before re-querying the DB. */

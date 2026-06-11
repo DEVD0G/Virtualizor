@@ -119,6 +119,26 @@ export class AuthService {
     return { ok: true };
   }
 
+  async updateProfile(userId: string, name: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+      select: { id: true, email: true, name: true },
+    });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await argon2.verify(user.passwordHash, currentPassword))) {
+      throw new UnauthorizedException('Aktuelles Passwort falsch');
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await argon2.hash(newPassword, { type: argon2.argon2id }) },
+    });
+    return { ok: true };
+  }
+
   // ─── Tokens & session ────────────────────────────────────────────────────────
 
   async refresh(refreshToken: string) {
@@ -133,6 +153,22 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     await this.prisma.refreshToken.deleteMany({ where: { tokenHash: this.hash(refreshToken) } });
+  }
+
+  async listSessions(userId: string) {
+    return this.prisma.refreshToken.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { id: sessionId, userId } });
+  }
+
+  async revokeAllSessions(userId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
   }
 
   async resolveUser(userId: string): Promise<AuthenticatedUser> {

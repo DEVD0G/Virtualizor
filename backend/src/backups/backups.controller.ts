@@ -46,6 +46,16 @@ export class BackupsController {
     return this.backups.create(user, vmId, dto.targetDir);
   }
 
+  @Post('vms/:vmId/backups/:id/restore')
+  @RequirePermissions('backup.manage')
+  restore(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('vmId') vmId: string,
+    @Param('id') id: string,
+  ) {
+    return this.backups.restore(user, vmId, id);
+  }
+
   @Delete('vms/:vmId/backups/:id')
   @HttpCode(204)
   @RequirePermissions('backup.manage')

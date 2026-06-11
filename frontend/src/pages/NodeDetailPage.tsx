@@ -53,6 +53,16 @@ export default function NodeDetailPage() {
     mutationFn: () => api(`/nodes/${id}`, { method: 'DELETE' }),
   });
 
+  const drain = useMutation({
+    mutationFn: () => api<{ migratedVms: number; taskIds: string[] }>(`/nodes/${id}/drain`, { method: 'POST' }),
+    onSuccess: (data) => {
+      setDrainResult(data);
+      invalidate();
+    },
+  });
+
+  const [drainResult, setDrainResult] = useState<{ migratedVms: number; taskIds: string[] } | null>(null);
+
   const createPool = useMutation({
     mutationFn: () => api(`/nodes/${id}/storage-pools`, { method: 'POST', body: poolForm }),
     onSuccess: () => { invalidate(); setShowPoolForm(false); setPoolForm({ name: '', type: 'dir', path: '/var/lib/vcp/images', isDefault: false }); },
@@ -85,6 +95,19 @@ export default function NodeDetailPage() {
         </div>
         {can('node.manage') && (
           <div className="flex gap-2">
+            {node.state !== 'maintenance' && (
+              <button
+                className="btn-secondary"
+                disabled={drain.isPending}
+                onClick={() => {
+                  if (confirm(`Alle VMs von "${node.name}" migrieren und Node in Wartung setzen?`)) {
+                    drain.mutate();
+                  }
+                }}
+              >
+                {drain.isPending ? 'Draining…' : 'Drain'}
+              </button>
+            )}
             <button
               className="btn-secondary"
               onClick={() => maintenance.mutate(node.state !== 'maintenance')}
@@ -100,6 +123,15 @@ export default function NodeDetailPage() {
           </div>
         )}
       </div>
+
+      {drainResult && (
+        <div className="flex items-center justify-between rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <span>
+            Drain abgeschlossen: {drainResult.migratedVms} VM{drainResult.migratedVms !== 1 ? 's' : ''} zur Migration eingeplant. Node wurde in Wartungsmodus versetzt.
+          </span>
+          <button className="text-xs underline ml-4" onClick={() => setDrainResult(null)}>Schließen</button>
+        </div>
+      )}
 
       {/* Info + live stats */}
       <div className="grid gap-4 lg:grid-cols-2">

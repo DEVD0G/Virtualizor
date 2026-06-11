@@ -6,6 +6,8 @@ import { EventsGateway } from '../events/events.gateway';
 
 export type TaskKind =
   | 'vm.provision'
+  | 'vm.clone'
+  | 'vm.migrate'
   | 'vm.delete'
   | 'vm.start'
   | 'vm.stop'
@@ -14,8 +16,14 @@ export type TaskKind =
   | 'vm.snapshot-revert'
   | 'vm.snapshot-delete'
   | 'vm.backup'
+  | 'vm.restore'
   | 'vm.resize'
-  | 'vm.disk-resize';
+  | 'vm.disk-resize'
+  | 'ct.provision'
+  | 'ct.start'
+  | 'ct.stop'
+  | 'ct.restart'
+  | 'ct.delete';
 
 export interface TaskHandler {
   handle(kind: TaskKind, payload: Record<string, any>, onProgress: (p: number) => void): Promise<void>;

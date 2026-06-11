@@ -37,6 +37,17 @@ export class LicenseController {
     return this.license.activate(dto.licenseKey);
   }
 
+  /**
+   * Self-Hosted-Modus: entsperrt das System ohne License-Server.
+   * Funktioniert nur, solange keine License API konfiguriert ist.
+   */
+  @Post('activate-self-hosted')
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  activateSelfHosted() {
+    return this.license.activateSelfHosted();
+  }
+
   @Post('refresh')
   @RequirePermissions('license.manage')
   @Throttle({ default: { ttl: 60_000, limit: 1 } })

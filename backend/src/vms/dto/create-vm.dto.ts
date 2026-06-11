@@ -15,7 +15,7 @@ class NicDto {
 }
 
 export class CreateVmDto {
-  @Matches(/^[a-z0-9][a-z0-9-]{2,62}$/, { message: 'Name: 3-63 Zeichen, a-z 0-9 -' })
+  @Matches(/^[a-z0-9][-a-z0-9]{2,62}$/, { message: 'Name: 3-63 Zeichen, a-z 0-9 Bindestrich' })
   name: string;
 
   @IsOptional() @IsUUID() nodeId?: string;

@@ -46,6 +46,42 @@ export class AgentClientService {
     return this.call(node, 'DELETE', `/v1/vms/${encodeURIComponent(name)}`);
   }
 
+  cloneVm(node: Node, sourceName: string, targetName: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(sourceName)}/clone`, { targetName });
+  }
+
+  migrateVm(node: Node, vmName: string, targetAddress: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/migrate`, { targetAddress });
+  }
+
+  mountIso(node: Node, vmName: string, isoUrl: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(vmName)}/iso/mount`, { isoUrl });
+  }
+
+  unmountIso(node: Node, vmName: string) {
+    return this.call(node, 'DELETE', `/v1/vms/${encodeURIComponent(vmName)}/iso`);
+  }
+
+  createContainer(node: Node, spec: { name: string; vcpus: number; memoryMb: number; diskGb: number; osTemplate: string; ipAddress?: string }) {
+    return this.call(node, 'POST', '/v1/containers', spec);
+  }
+
+  startContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/start`);
+  }
+
+  stopContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/stop`);
+  }
+
+  restartContainer(node: Node, name: string) {
+    return this.call(node, 'POST', `/v1/containers/${encodeURIComponent(name)}/restart`);
+  }
+
+  deleteContainer(node: Node, name: string) {
+    return this.call(node, 'DELETE', `/v1/containers/${encodeURIComponent(name)}`);
+  }
+
   snapshotVm(node: Node, name: string, snapshotName: string) {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/snapshot`, { name: snapshotName });
   }
@@ -74,6 +110,10 @@ export class AgentClientService {
   backupVm(node: Node, name: string, targetDir?: string) {
     return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/backup`,
       targetDir ? { targetDir } : {});
+  }
+
+  restoreVm(node: Node, name: string, backupPath: string) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/restore`, { backupPath });
   }
 
   consoleToken(node: Node, name: string) {

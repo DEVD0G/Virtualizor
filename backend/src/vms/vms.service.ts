@@ -10,6 +10,8 @@ import { AgentClientService, VmCreateSpec } from '../agent/agent-client.service'
 import { TasksService, TaskHandler, TaskKind } from '../tasks/tasks.service';
 import { EventsGateway } from '../events/events.gateway';
 import { LicenseService } from '../license/license.service';
+import { QuotasService } from '../quotas/quotas.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { CreateVmDto } from './dto/create-vm.dto';
 
@@ -19,10 +21,11 @@ export interface ConsoleMeta {
 }
 
 const vmInclude = {
-  node: { select: { id: true, name: true } },
+  node: { select: { id: true, name: true, agentAddress: true } },
   owner: { select: { id: true, email: true, name: true } },
   disks: { include: { storagePool: { select: { id: true, name: true, type: true } } } },
   nics: { include: { network: true, ips: true } },
+  mountedIso: { select: { id: true, name: true } },
 } satisfies Prisma.VmInclude;
 
 @Injectable()
@@ -36,6 +39,8 @@ export class VmsService implements TaskHandler, OnModuleInit {
     private readonly tasks: TasksService,
     private readonly events: EventsGateway,
     private readonly license: LicenseService,
+    private readonly quotas: QuotasService,
+    private readonly webhooks: WebhooksService,
   ) {
     const url = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
     this.redis = new Redis({ host: url.hostname, port: parseInt(url.port || '6379', 10) });
@@ -71,6 +76,8 @@ export class VmsService implements TaskHandler, OnModuleInit {
   async create(user: AuthenticatedUser, dto: CreateVmDto) {
     await this.license.assertWriteAllowed();
     await this.license.assertVmLimit();
+    const totalDiskGb = dto.disks.reduce((s, d) => s + d.sizeGb, 0);
+    await this.quotas.checkVmCreateQuota(user, dto.vcpus, dto.memoryMb, totalDiskGb);
 
     const exists = await this.prisma.vm.findUnique({ where: { name: dto.name } });
     if (exists) throw new ConflictException('VM-Name bereits vergeben');
@@ -139,12 +146,93 @@ export class VmsService implements TaskHandler, OnModuleInit {
     return { taskId: task.id };
   }
 
+  async updateMeta(user: AuthenticatedUser, id: string, dto: { description?: string; tags?: string[] }) {
+    const vm = await this.get(user, id);
+    return this.prisma.vm.update({
+      where: { id: vm.id },
+      data: { ...(dto.description !== undefined ? { description: dto.description } : {}),
+               ...(dto.tags !== undefined ? { tags: dto.tags } : {}) },
+    });
+  }
+
+  async clone(user: AuthenticatedUser, id: string, newName: string) {
+    await this.license.assertWriteAllowed();
+    const source = await this.get(user, id);
+    if (source.state !== 'stopped') throw new BadRequestException('Quelle muss gestoppt sein');
+
+    const exists = await this.prisma.vm.findUnique({ where: { name: newName } });
+    if (exists) throw new ConflictException('VM-Name bereits vergeben');
+
+    const clone = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.vm.create({
+        data: {
+          name: newName,
+          vcpus: source.vcpus,
+          memoryMb: source.memoryMb,
+          nodeId: source.nodeId,
+          ownerId: user.id,
+          templateId: source.templateId,
+          cloudInit: source.cloudInit as any,
+          tags: (source as any).tags ?? [],
+          description: `Klon von ${source.name}`,
+        },
+      });
+      // Disks mit gleichen Größen + Pool anlegen (Agent klont die Daten)
+      for (const [i, disk] of (source as any).disks.entries()) {
+        await tx.volume.create({
+          data: {
+            name: `${newName}-disk${i}`,
+            sizeGb: disk.sizeGb,
+            vmId: created.id,
+            storagePoolId: disk.storagePoolId,
+            bootOrder: disk.bootOrder,
+          },
+        });
+      }
+      return created;
+    });
+
+    const task = await this.tasks.enqueue('vm.clone', 'vm', clone.id,
+      { sourceVmId: source.id, cloneVmId: clone.id }, user.id);
+    return { vm: clone, taskId: task.id };
+  }
+
   async remove(user: AuthenticatedUser, id: string) {
     await this.license.assertWriteAllowed();
     const vm = await this.get(user, id);
     await this.prisma.vm.update({ where: { id: vm.id }, data: { state: 'deleting' } });
     const task = await this.tasks.enqueue('vm.delete', 'vm', vm.id, { vmId: vm.id }, user.id);
     return { taskId: task.id };
+  }
+
+  // ─── Migrate ───────────────────────────────────────────────────────────────
+
+  async migrate(user: AuthenticatedUser, id: string, targetNodeId: string) {
+    const vm = await this.get(user, id);
+    if (vm.state !== 'stopped') throw new BadRequestException('VM muss gestoppt sein');
+    const targetNode = await this.prisma.node.findFirst({ where: { id: targetNodeId, state: 'online' } });
+    if (!targetNode) throw new BadRequestException('Ziel-Node nicht verfügbar');
+    if (targetNode.id === vm.nodeId) throw new BadRequestException('VM befindet sich bereits auf diesem Node');
+    const task = await this.tasks.enqueue('vm.migrate', 'vm', vm.id,
+      { vmId: vm.id, targetNodeId }, user.id);
+    return { taskId: task.id };
+  }
+
+  // ─── ISO Mount ─────────────────────────────────────────────────────────────
+
+  async mountIso(user: AuthenticatedUser, vmId: string, isoId: string) {
+    const vm = await this.get(user, vmId);
+    const iso = await this.prisma.iso.findUnique({ where: { id: isoId } });
+    if (!iso) throw new NotFoundException('ISO nicht gefunden');
+    await this.agent.mountIso(vm.node as any, vm.name, iso.sourceUrl);
+    return this.prisma.vm.update({ where: { id: vm.id }, data: { mountedIsoId: isoId } });
+  }
+
+  async unmountIso(user: AuthenticatedUser, vmId: string) {
+    const vm = await this.get(user, vmId);
+    if (!(vm as any).mountedIsoId) throw new BadRequestException('Kein ISO eingehängt');
+    await this.agent.unmountIso(vm.node as any, vm.name);
+    return this.prisma.vm.update({ where: { id: vm.id }, data: { mountedIsoId: null } });
   }
 
   // ─── Resize ────────────────────────────────────────────────────────────────
@@ -324,6 +412,23 @@ export class VmsService implements TaskHandler, OnModuleInit {
         await this.agent.restartVm(node, vm.name);
         await this.setState(vm.id, vm.name, 'running');
         break;
+      case 'vm.clone': {
+        const sourceVm = await this.prisma.vm.findUniqueOrThrow({
+          where: { id: payload.sourceVmId },
+          include: { node: true },
+        });
+        await this.agent.cloneVm(node, sourceVm.name, vm.name);
+        await this.setState(vm.id, vm.name, 'stopped');
+        break;
+      }
+      case 'vm.migrate': {
+        const targetNode = await this.prisma.node.findUniqueOrThrow({ where: { id: payload.targetNodeId } });
+        onProgress(10);
+        await this.agent.migrateVm(node, vm.name, targetNode.agentAddress);
+        await this.prisma.vm.update({ where: { id: vm.id }, data: { nodeId: targetNode.id } });
+        await this.setState(vm.id, vm.name, 'stopped');
+        break;
+      }
       case 'vm.delete':
         await this.agent.deleteVm(node, vm.name);
         await this.prisma.vm.delete({ where: { id: vm.id } });
@@ -346,6 +451,15 @@ export class VmsService implements TaskHandler, OnModuleInit {
         await this.prisma.backup.update({
           where: { id: payload.backupId },
           data: { state: 'completed', sizeBytes: totalBytes, target: result.targetDir },
+        });
+        break;
+      }
+      case 'vm.restore': {
+        onProgress(5);
+        await this.agent.restoreVm(node, vm.name, payload.backupPath);
+        await this.prisma.backup.update({
+          where: { id: payload.backupId },
+          data: { state: 'completed' },
         });
         break;
       }
@@ -394,6 +508,36 @@ export class VmsService implements TaskHandler, OnModuleInit {
   private async setState(vmId: string, vmName: string, state: 'running' | 'stopped') {
     await this.prisma.vm.update({ where: { id: vmId }, data: { state, errorMsg: null } });
     this.events.emitVmState(vmName, state);
+    this.webhooks.fire(`vm.${state}`, { vmId, vmName, state }).catch(() => {});
+  }
+
+  async addNic(user: AuthenticatedUser, vmId: string, networkId: string, ipPoolId?: string) {
+    const vm = await this.get(user, vmId);
+    const network = await this.prisma.network.findUnique({ where: { id: networkId } });
+    if (!network) throw new NotFoundException('Netzwerk nicht gefunden');
+    return this.prisma.$transaction(async (tx) => {
+      const nic = await tx.nic.create({
+        data: { vmId: vm.id, networkId, mac: this.generateMac() },
+      });
+      if (ipPoolId) {
+        const ip = await tx.ipAddress.findFirst({
+          where: { poolId: ipPoolId, nicId: null, reserved: false },
+        });
+        if (!ip) throw new BadRequestException('Kein freies IP im Pool verfügbar');
+        await tx.ipAddress.update({ where: { id: ip.id }, data: { nicId: nic.id } });
+      }
+      return tx.nic.findUnique({ where: { id: nic.id }, include: { network: true, ips: true } });
+    });
+  }
+
+  async removeNic(user: AuthenticatedUser, vmId: string, nicId: string) {
+    const vm = await this.get(user, vmId);
+    const nic = await this.prisma.nic.findFirst({ where: { id: nicId, vmId: vm.id } });
+    if (!nic) throw new NotFoundException('NIC nicht gefunden');
+    const nicCount = await this.prisma.nic.count({ where: { vmId: vm.id } });
+    if (nicCount <= 1) throw new BadRequestException('Letzte NIC kann nicht entfernt werden');
+    await this.prisma.ipAddress.updateMany({ where: { nicId }, data: { nicId: null } });
+    await this.prisma.nic.delete({ where: { id: nicId } });
   }
 
   private generateMac(): string {

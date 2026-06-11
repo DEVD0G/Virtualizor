@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
+import { TasksService } from '../tasks/tasks.service';
 import { CertsService } from './certs.service';
 
 export interface HeartbeatPayload {
@@ -23,6 +24,7 @@ export class NodesService {
     private readonly prisma: PrismaService,
     private readonly certs: CertsService,
     private readonly events: EventsGateway,
+    private readonly tasks: TasksService,
   ) {}
 
   list() {
@@ -196,6 +198,33 @@ export class NodesService {
     const volumes = await this.prisma.volume.count({ where: { storagePoolId: poolId } });
     if (volumes > 0) throw new BadRequestException('Pool hat noch Volumes');
     await this.prisma.storagePool.delete({ where: { id: poolId } });
+  }
+
+  async drain(nodeId: string) {
+    const vms = await this.prisma.vm.findMany({
+      where: { nodeId, state: { notIn: ['deleting', 'error'] } },
+    });
+    if (vms.length === 0) {
+      await this.setMaintenance(nodeId, true);
+      return { migratedVms: 0, taskIds: [] };
+    }
+    const targets = await this.prisma.node.findMany({
+      where: { state: 'online', id: { not: nodeId } },
+      orderBy: { memUsedMb: 'asc' },
+    });
+    if (targets.length === 0) throw new BadRequestException('Keine verfügbaren Ziel-Nodes für Migration');
+
+    const taskIds: string[] = [];
+    for (let i = 0; i < vms.length; i++) {
+      const target = targets[i % targets.length];
+      const task = await this.tasks.enqueue(
+        'vm.migrate', 'vm', vms[i].id,
+        { vmId: vms[i].id, targetNodeId: target.id },
+      );
+      taskIds.push(task.id);
+    }
+    await this.setMaintenance(nodeId, true);
+    return { migratedVms: vms.length, taskIds };
   }
 
   async remove(id: string) {
