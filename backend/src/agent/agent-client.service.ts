@@ -9,6 +9,12 @@ export interface VmCreateSpec {
   name: string;
   vcpus: number;
   memoryMb: number;
+  uefi?: boolean;
+  cpuSockets?: number;
+  cpuCores?: number;
+  cpuThreads?: number;
+  bootOrder?: string[];
+  pciDevices?: { domain?: string; bus: string; slot: string; function: string }[];
   disks: { name: string; sizeGb: number; poolPath: string; templateUrl?: string; templateSha256?: string }[];
   nics: { mac: string; bridge: string; vlanTag?: number; ip?: string; gateway?: string; dns?: string[] }[];
   cloudInit?: { sshKeys?: string[]; userData?: string; hostname?: string };
@@ -112,8 +118,12 @@ export class AgentClientService {
       targetDir ? { targetDir } : {});
   }
 
-  restoreVm(node: Node, name: string, backupPath: string) {
-    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/restore`, { backupPath });
+  restoreVm(node: Node, name: string, backupFiles: string[]) {
+    return this.call(node, 'POST', `/v1/vms/${encodeURIComponent(name)}/restore`, { backupFiles });
+  }
+
+  listPciDevices(node: Node) {
+    return this.call(node, 'GET', '/v1/pci-devices');
   }
 
   consoleToken(node: Node, name: string) {

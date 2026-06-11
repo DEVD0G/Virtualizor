@@ -43,6 +43,14 @@ class AddNicDto {
   @IsOptional() @IsUUID() ipPoolId?: string;
 }
 
+class AddPciDto {
+  @IsOptional() @IsString() domain?: string;
+  @IsString() bus: string;
+  @IsString() slot: string;
+  @IsString() function: string;
+  @IsOptional() @IsString() label?: string;
+}
+
 class UpdateVmMetaDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
@@ -236,5 +244,28 @@ export class VmsController {
     @Param('ruleId') ruleId: string,
   ) {
     return this.vms.deleteFirewallRule(user, id, ruleId);
+  }
+
+  @Get(':id/pci')
+  @RequirePermissions('vm.manage')
+  listPci(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.vms.listPci(user, id);
+  }
+
+  @Post(':id/pci')
+  @RequirePermissions('vm.manage')
+  addPci(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: AddPciDto) {
+    return this.vms.addPci(user, id, dto);
+  }
+
+  @Delete(':id/pci/:pciId')
+  @HttpCode(204)
+  @RequirePermissions('vm.manage')
+  removePci(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('pciId') pciId: string,
+  ) {
+    return this.vms.removePci(user, id, pciId);
   }
 }

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Backup, BackupSchedule, FirewallRule, Iso, Network, Node, Snapshot, Vm } from '../api/types';
+import { Backup, BackupSchedule, FirewallRule, Iso, Network, Node, NodePciDevice, PciPassthrough, Snapshot, Vm } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import AiDiagnoseCard from '../components/AiDiagnoseCard';
 import StatusBadge from '../components/StatusBadge';
@@ -36,6 +36,8 @@ export default function VmDetailPage() {
     cidr: '0.0.0.0/0',
     priority: '100',
   });
+  const [showAddPci, setShowAddPci] = useState(false);
+  const [selectedPciAddr, setSelectedPciAddr] = useState('');
 
   const { data: vm } = useQuery({
     queryKey: ['vms', id],
@@ -77,6 +79,16 @@ export default function VmDetailPage() {
     queryFn: () => api<Network[]>('/networks'),
     enabled: can('vm.manage'),
   });
+  const { data: pciDevices } = useQuery({
+    queryKey: ['vms', id, 'pci'],
+    queryFn: () => api<PciPassthrough[]>(`/vms/${id}/pci`),
+    enabled: can('vm.manage'),
+  });
+  const { data: nodePciDevices } = useQuery({
+    queryKey: ['nodes', vm?.node.id, 'pci-devices'],
+    queryFn: () => api<{ devices: NodePciDevice[] }>(`/nodes/${vm!.node.id}/pci-devices`),
+    enabled: can('node.read') && showAddPci && !!vm,
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['vms'] });
@@ -84,6 +96,7 @@ export default function VmDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'backups'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'firewall'] });
     queryClient.invalidateQueries({ queryKey: ['vms', id, 'backup-schedules'] });
+    queryClient.invalidateQueries({ queryKey: ['vms', id, 'pci'] });
   };
 
   const action = useMutation({
@@ -236,7 +249,17 @@ export default function VmDetailPage() {
           </div>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-slate-500">vCPUs</dt><dd>{vm.vcpus}</dd></div>
+            {(vm.cpuSockets > 1 || vm.cpuCores > 1 || vm.cpuThreads > 1) && (
+              <div className="flex justify-between"><dt className="text-slate-500">CPU-Topologie</dt>
+                <dd>{vm.cpuSockets}S × {vm.cpuCores}C × {vm.cpuThreads}T</dd></div>
+            )}
             <div className="flex justify-between"><dt className="text-slate-500">RAM</dt><dd>{(vm.memoryMb / 1024).toFixed(1)} GiB</dd></div>
+            <div className="flex justify-between"><dt className="text-slate-500">BIOS</dt>
+              <dd className="uppercase text-xs font-mono">{vm.bios ?? 'seabios'}</dd></div>
+            {vm.bootOrder?.length > 0 && (
+              <div className="flex justify-between"><dt className="text-slate-500">Boot-Reihenfolge</dt>
+                <dd className="text-xs font-mono">{vm.bootOrder.join(' → ')}</dd></div>
+            )}
             <div className="flex justify-between"><dt className="text-slate-500">Node</dt><dd>{vm.node.name}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Besitzer</dt><dd>{vm.owner.name} ({vm.owner.email})</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Erstellt</dt><dd>{new Date(vm.createdAt).toLocaleString()}</dd></div>
@@ -402,6 +425,84 @@ export default function VmDetailPage() {
           </div>
         </div>
       </div>
+
+      {can('vm.manage') && (
+        <div className="card">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold">PCI-Passthrough</h2>
+            {vm.state === 'stopped' && (
+              <button className="btn-secondary text-xs" onClick={() => setShowAddPci(!showAddPci)}>
+                {showAddPci ? 'Abbrechen' : '+ PCI-Gerät'}
+              </button>
+            )}
+          </div>
+
+          {showAddPci && (
+            <div className="mb-4 rounded-lg border border-slate-200 p-3 dark:border-slate-700 space-y-2">
+              <p className="text-xs text-slate-500">Verfügbare PCI-Geräte auf Node {vm.node.name}:</p>
+              {nodePciDevices ? (
+                <select className="input" value={selectedPciAddr}
+                  onChange={(e) => setSelectedPciAddr(e.target.value)}>
+                  <option value="">Gerät wählen…</option>
+                  {nodePciDevices.devices?.filter((d) => !['bridge', 'usb'].some((s) => d.class.includes(s))).map((d) => (
+                    <option key={d.address} value={d.address}>
+                      {d.address} — {d.vendor} {d.device}
+                      {d.driver ? ` [${d.driver}]` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-xs text-slate-400">Lade PCI-Geräte…</p>
+              )}
+              <button className="btn-primary text-xs"
+                disabled={!selectedPciAddr || action.isPending}
+                onClick={() => {
+                  const parts = selectedPciAddr.split(':');
+                  const slotFn = parts[2]?.split('.') ?? ['0', '0'];
+                  action.mutate({
+                    path: `/vms/${vm.id}/pci`,
+                    body: {
+                      domain: `0x${parts[0]}`,
+                      bus: `0x${parts[1]}`,
+                      slot: `0x${slotFn[0]}`,
+                      function: `0x${slotFn[1] ?? '0'}`,
+                      label: nodePciDevices?.devices?.find((d) => d.address === selectedPciAddr)
+                        ?.device ?? undefined,
+                    },
+                  });
+                  setShowAddPci(false);
+                  setSelectedPciAddr('');
+                }}>
+                Hinzufügen
+              </button>
+            </div>
+          )}
+
+          {pciDevices && pciDevices.length > 0 ? (
+            <table className="table-base text-sm">
+              <thead><tr><th>Adresse</th><th>Label</th><th></th></tr></thead>
+              <tbody>
+                {pciDevices.map((p) => (
+                  <tr key={p.id}>
+                    <td className="font-mono text-xs">{p.domain}:{p.bus}:{p.slot}.{p.function}</td>
+                    <td className="text-slate-500">{p.label ?? '—'}</td>
+                    <td className="text-right">
+                      {vm.state === 'stopped' && (
+                        <button className="btn-danger text-xs"
+                          onClick={() => action.mutate({ path: `/vms/${vm.id}/pci/${p.id}`, method: 'DELETE' })}>
+                          Entfernen
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-slate-400">Kein PCI-Passthrough konfiguriert</p>
+          )}
+        </div>
+      )}
 
       {can('backup.read') && (
         <div className="card">

@@ -7,11 +7,22 @@ import { Network, Node, NodeDetail, Template } from '../api/types';
 interface DiskEntry { sizeGb: number; storagePoolId: string }
 interface NicEntry { networkId: string; ipPoolId: string }
 
+const BOOT_ORDER_OPTIONS = [
+  { value: 'hd', label: 'Festplatte' },
+  { value: 'cdrom', label: 'CD-ROM' },
+  { value: 'network', label: 'Netzwerk (PXE)' },
+];
+
 export default function CreateVmPage() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [vcpus, setVcpus] = useState(2);
   const [memoryGb, setMemoryGb] = useState(4);
+  const [uefi, setUefi] = useState(false);
+  const [cpuSockets, setCpuSockets] = useState(1);
+  const [cpuCores, setCpuCores] = useState(1);
+  const [cpuThreads, setCpuThreads] = useState(1);
+  const [bootOrder, setBootOrder] = useState<string[]>(['hd']);
   const [nodeId, setNodeId] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [disks, setDisks] = useState<DiskEntry[]>([{ sizeGb: 40, storagePoolId: '' }]);
@@ -22,6 +33,12 @@ export default function CreateVmPage() {
   const [tagInput, setTagInput] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+
+  function toggleBootEntry(val: string) {
+    setBootOrder((prev) =>
+      prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]
+    );
+  }
 
   const { data: nodes } = useQuery({ queryKey: ['nodes'], queryFn: () => api<Node[]>('/nodes') });
   const { data: networks } = useQuery({ queryKey: ['networks'], queryFn: () => api<Network[]>('/networks') });
@@ -83,6 +100,11 @@ export default function CreateVmPage() {
           name,
           vcpus,
           memoryMb: memoryGb * 1024,
+          uefi,
+          cpuSockets,
+          cpuCores,
+          cpuThreads,
+          bootOrder: bootOrder.length ? bootOrder : undefined,
           disks: disks.map((d) => ({ sizeGb: d.sizeGb, ...(d.storagePoolId ? { storagePoolId: d.storagePoolId } : {}) })),
           nics: nics.map((n) => ({ networkId: n.networkId, ...(n.ipPoolId ? { ipPoolId: n.ipPoolId } : {}) })),
           ...(templateId ? { templateId } : {}),
@@ -150,7 +172,7 @@ export default function CreateVmPage() {
           <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Hardware</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">vCPUs</label>
+              <label className="label">vCPUs (gesamt)</label>
               <input className="input" type="number" min={1} max={128} value={vcpus}
                 onChange={(e) => setVcpus(+e.target.value)} />
             </div>
@@ -159,6 +181,51 @@ export default function CreateVmPage() {
               <input className="input" type="number" min={0.25} max={1024} step={0.25} value={memoryGb}
                 onChange={(e) => setMemoryGb(+e.target.value)} />
             </div>
+          </div>
+
+          {/* CPU-Topologie */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">Sockets</label>
+              <input className="input" type="number" min={1} max={16} value={cpuSockets}
+                onChange={(e) => setCpuSockets(+e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Kerne pro Socket</label>
+              <input className="input" type="number" min={1} max={64} value={cpuCores}
+                onChange={(e) => setCpuCores(+e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Threads pro Kern</label>
+              <input className="input" type="number" min={1} max={8} value={cpuThreads}
+                onChange={(e) => setCpuThreads(+e.target.value)} />
+            </div>
+          </div>
+
+          {/* BIOS / Firmware */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-brand-500"
+                checked={uefi} onChange={(e) => setUefi(e.target.checked)} />
+              <span className="text-sm font-medium">UEFI / OVMF (statt SeaBIOS)</span>
+            </label>
+            <span className="text-xs text-slate-400">für Windows 11, Secure Boot</span>
+          </div>
+
+          {/* Boot-Reihenfolge */}
+          <div>
+            <label className="label">Boot-Reihenfolge</label>
+            <div className="flex flex-wrap gap-2">
+              {BOOT_ORDER_OPTIONS.map((opt) => (
+                <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-brand-500"
+                    checked={bootOrder.includes(opt.value)}
+                    onChange={() => toggleBootEntry(opt.value)} />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-slate-400">Reihenfolge = Reihenfolge der Auswahl</p>
           </div>
 
           {/* Disks */}

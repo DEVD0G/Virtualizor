@@ -77,6 +77,39 @@ func (s *Store) EnsureTemplate(url, sha string) (string, error) {
 	return cached, os.Rename(tmp, cached)
 }
 
+// EnsureISO lädt ein ISO-Image in den Cache (einmalig) und gibt den lokalen Pfad zurück.
+func (s *Store) EnsureISO(url string) (string, error) {
+	sum := sha256.Sum256([]byte(url))
+	cached, err := safePath(s.IsosDir, "iso-"+hex.EncodeToString(sum[:8])+".iso")
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(cached); err == nil {
+		return cached, nil
+	}
+	client := &http.Client{Timeout: 30 * time.Minute}
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("iso-download: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("iso-download: HTTP %d", resp.StatusCode)
+	}
+	tmp := cached + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return "", err
+	}
+	f.Close()
+	return cached, os.Rename(tmp, cached)
+}
+
 // CreateVolume legt ein qcow2-Volume an; mit Template als Backing-File
 // (Copy-on-Write) oder leer.
 func (s *Store) CreateVolume(name string, sizeGb int, templatePath string) (string, error) {

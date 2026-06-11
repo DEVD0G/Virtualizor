@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,15 @@ import (
 	"github.com/devd0g/virtualizor/agent/internal/virt"
 )
 
-const qemuImgBin = "/usr/bin/qemu-img"
+const (
+	qemuImgBin    = "/usr/bin/qemu-img"
+	lxcCreateBin  = "/usr/bin/lxc-create"
+	lxcStartBin   = "/usr/bin/lxc-start"
+	lxcStopBin    = "/usr/bin/lxc-stop"
+	lxcDestroyBin = "/usr/bin/lxc-destroy"
+	rsyncBin      = "/usr/bin/rsync"
+	virshBin      = "/usr/bin/virsh"
+)
 
 type consoleEntry struct {
 	vmName    string
@@ -111,6 +120,20 @@ func (s *Server) ListenAndServe() error {
 	mux.HandleFunc("POST /v1/vms/{name}/firewall/apply", s.handleApplyFirewall)
 	mux.HandleFunc("POST /v1/vms/{name}/resize", s.handleResizeVm)
 	mux.HandleFunc("POST /v1/vms/{name}/disks/resize", s.handleResizeDisk)
+	mux.HandleFunc("POST /v1/vms/{name}/clone", s.handleCloneVm)
+	mux.HandleFunc("POST /v1/vms/{name}/iso/mount", s.handleMountIso)
+	mux.HandleFunc("DELETE /v1/vms/{name}/iso", s.handleUnmountIso)
+	mux.HandleFunc("POST /v1/vms/{name}/restore", s.handleRestoreVm)
+	mux.HandleFunc("POST /v1/vms/{name}/migrate", s.handleMigrateVm)
+	mux.HandleFunc("POST /v1/containers", s.handleCreateContainer)
+	mux.HandleFunc("POST /v1/containers/{name}/start", s.containerAction(func(n string, _ map[string]any) error { return execCmd(lxcStartBin, "-n", n) }))
+	mux.HandleFunc("POST /v1/containers/{name}/stop", s.containerAction(func(n string, _ map[string]any) error { return execCmd(lxcStopBin, "-n", n, "-t", "30") }))
+	mux.HandleFunc("POST /v1/containers/{name}/restart", s.containerAction(func(n string, _ map[string]any) error {
+		_ = execCmd(lxcStopBin, "-n", n, "-t", "30")
+		return execCmd(lxcStartBin, "-n", n)
+	}))
+	mux.HandleFunc("DELETE /v1/containers/{name}", s.handleDeleteContainer)
+	mux.HandleFunc("GET /v1/pci-devices", s.handleListPciDevices)
 	mux.HandleFunc("POST /v1/console-token", s.handleConsoleToken)
 	mux.HandleFunc("GET /v1/console/ws", s.handleConsoleWs)
 
@@ -149,10 +172,21 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 }
 
 type createVmReq struct {
-	Name     string `json:"name"`
-	VCPUs    int    `json:"vcpus"`
-	MemoryMB int    `json:"memoryMb"`
-	Disks    []struct {
+	Name       string   `json:"name"`
+	VCPUs      int      `json:"vcpus"`
+	MemoryMB   int      `json:"memoryMb"`
+	UEFI       bool     `json:"uefi"`
+	CPUSockets int      `json:"cpuSockets"`
+	CPUCores   int      `json:"cpuCores"`
+	CPUThreads int      `json:"cpuThreads"`
+	BootOrder  []string `json:"bootOrder"`
+	PCIDevices []struct {
+		Domain   string `json:"domain"`
+		Bus      string `json:"bus"`
+		Slot     string `json:"slot"`
+		Function string `json:"function"`
+	} `json:"pciDevices"`
+	Disks []struct {
 		Name           string `json:"name"`
 		SizeGb         int    `json:"sizeGb"`
 		TemplateURL    string `json:"templateUrl"`
@@ -183,7 +217,21 @@ func (s *Server) handleCreateVm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spec := virt.DomainSpec{Name: req.Name, VCPUs: req.VCPUs, MemoryMB: req.MemoryMB}
+	spec := virt.DomainSpec{
+		Name:       req.Name,
+		VCPUs:      req.VCPUs,
+		MemoryMB:   req.MemoryMB,
+		UEFI:       req.UEFI,
+		CPUSockets: req.CPUSockets,
+		CPUCores:   req.CPUCores,
+		CPUThreads: req.CPUThreads,
+		BootOrder:  req.BootOrder,
+	}
+	for _, p := range req.PCIDevices {
+		spec.PCIDevices = append(spec.PCIDevices, virt.PCIDevice{
+			Domain: p.Domain, Bus: p.Bus, Slot: p.Slot, Function: p.Function,
+		})
+	}
 
 	devs := []string{"vda", "vdb", "vdc", "vdd", "vde", "vdf", "vdg", "vdh"}
 	for i, d := range req.Disks {
@@ -618,6 +666,304 @@ func wsWriteFrame(w io.Writer, payload []byte) error {
 	return err
 }
 
+func (s *Server) handleCloneVm(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		TargetName string `json:"targetName"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if !virt.ValidName(body.TargetName) {
+		writeErr(w, 400, fmt.Errorf("ungültiger targetName"))
+		return
+	}
+	if err := s.virt.CloneVM(name, body.TargetName, s.store.ImagesDir); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 201, map[string]string{"status": "cloned", "name": body.TargetName})
+}
+
+func (s *Server) handleMountIso(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		IsoURL  string `json:"isoUrl"`
+		IsoPath string `json:"isoPath"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	var isoPath string
+	switch {
+	case body.IsoPath != "":
+		if !strings.HasPrefix(body.IsoPath, s.store.IsosDir+"/") {
+			writeErr(w, 400, fmt.Errorf("isoPath außerhalb des iso-verzeichnisses"))
+			return
+		}
+		isoPath = body.IsoPath
+	case body.IsoURL != "":
+		p, err := s.store.EnsureISO(body.IsoURL)
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		isoPath = p
+	default:
+		writeErr(w, 400, fmt.Errorf("isoUrl oder isoPath erforderlich"))
+		return
+	}
+	if err := s.virt.MountISO(name, isoPath); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "mounted"})
+}
+
+func (s *Server) handleUnmountIso(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	if err := s.virt.UnmountISO(name); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "unmounted"})
+}
+
+func (s *Server) handleRestoreVm(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		BackupFiles []string `json:"backupFiles"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if len(body.BackupFiles) == 0 {
+		writeErr(w, 400, fmt.Errorf("backupFiles erforderlich"))
+		return
+	}
+	for _, bf := range body.BackupFiles {
+		if !strings.HasPrefix(bf, "/var/lib/vcp/") && !strings.HasPrefix(bf, s.store.ImagesDir+"/") {
+			writeErr(w, 400, fmt.Errorf("backupFile außerhalb des erlaubten Pfads: %s", bf))
+			return
+		}
+	}
+	_ = s.virt.Stop(name, true)
+	diskPaths, err := s.virt.DiskPaths(name)
+	if err != nil {
+		writeErr(w, 404, err)
+		return
+	}
+	if len(diskPaths) != len(body.BackupFiles) {
+		writeErr(w, 400, fmt.Errorf("anzahl backup-dateien (%d) stimmt nicht mit disks (%d) überein",
+			len(body.BackupFiles), len(diskPaths)))
+		return
+	}
+	for i, bf := range body.BackupFiles {
+		cmd := exec.Command(qemuImgBin, "convert", "-f", "qcow2", "-O", "qcow2", bf, diskPaths[i])
+		if out, err := cmd.CombinedOutput(); err != nil {
+			writeErr(w, 500, fmt.Errorf("restore disk %d: %s: %w", i, out, err))
+			return
+		}
+	}
+	if err := s.virt.Start(name); err != nil {
+		writeErr(w, 500, fmt.Errorf("VM starten nach Restore: %w", err))
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "restored"})
+}
+
+func (s *Server) handleMigrateVm(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	var body struct {
+		Mode       string `json:"mode"`
+		TargetHost string `json:"targetHost"`
+		TargetUser string `json:"targetUser"`
+		TargetDir  string `json:"targetDir"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if !validHostname(body.TargetHost) {
+		writeErr(w, 400, fmt.Errorf("ungültiger targetHost"))
+		return
+	}
+	user := "root"
+	if body.TargetUser != "" {
+		if !validAlphanumDash(body.TargetUser) {
+			writeErr(w, 400, fmt.Errorf("ungültiger targetUser"))
+			return
+		}
+		user = body.TargetUser
+	}
+	targetDir := s.store.ImagesDir
+	if body.TargetDir != "" {
+		if strings.ContainsAny(body.TargetDir, ";|&`$(){}") {
+			writeErr(w, 400, fmt.Errorf("ungültiger targetDir"))
+			return
+		}
+		targetDir = body.TargetDir
+	}
+
+	if body.Mode == "live" {
+		dstURI := fmt.Sprintf("qemu+ssh://%s@%s/system", user, body.TargetHost)
+		cmd := exec.Command(virshBin, "migrate", "--live", "--persistent",
+			"--undefinesource", name, dstURI)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			writeErr(w, 500, fmt.Errorf("live-migration: %s: %w", out, err))
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "migrated"})
+		return
+	}
+
+	// Offline-Migration
+	diskPaths, err := s.virt.DiskPaths(name)
+	if err != nil {
+		writeErr(w, 404, err)
+		return
+	}
+	if err := s.virt.Stop(name, false); err != nil {
+		writeErr(w, 500, fmt.Errorf("VM stoppen: %w", err))
+		return
+	}
+	remote := fmt.Sprintf("%s@%s:%s", user, body.TargetHost, targetDir)
+	for _, disk := range diskPaths {
+		cmd := exec.Command(rsyncBin, "-az",
+			"-e", "/usr/bin/ssh -o StrictHostKeyChecking=accept-new",
+			disk, remote+"/")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			writeErr(w, 500, fmt.Errorf("rsync %s: %s: %w", disk, out, err))
+			return
+		}
+	}
+	xmlStr, err := s.virt.ExportXML(name)
+	if err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"status":    "migrated",
+		"xml":       xmlStr,
+		"diskPaths": diskPaths,
+	})
+}
+
+func (s *Server) handleCreateContainer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string `json:"name"`
+		Template string `json:"template"`
+		MemoryMB int    `json:"memoryMb"`
+		CPUs     int    `json:"cpus"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if !virt.ValidName(req.Name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger container-name"))
+		return
+	}
+	parts := strings.SplitN(req.Template, ":", 2)
+	if len(parts) != 2 || !validAlphanumDash(parts[0]) || !validAlphanumDash(parts[1]) {
+		writeErr(w, 400, fmt.Errorf("ungültiges template-format (erwartet 'distro:release')"))
+		return
+	}
+	if req.MemoryMB < 64 {
+		req.MemoryMB = 512
+	}
+	if req.CPUs < 1 {
+		req.CPUs = 1
+	}
+	if err := execCmd(lxcCreateBin, "-n", req.Name, "-t", "download", "--",
+		"-d", parts[0], "-r", parts[1], "-a", "amd64"); err != nil {
+		writeErr(w, 500, fmt.Errorf("lxc-create: %w", err))
+		return
+	}
+	cfgPath := filepath.Join("/var/lib/lxc", req.Name, "config")
+	if f, err := os.OpenFile(cfgPath, os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
+		fmt.Fprintf(f, "\nlxc.cgroup2.memory.max = %dM\n", req.MemoryMB)
+		fmt.Fprintf(f, "lxc.cgroup2.cpuset.cpus = 0-%d\n", req.CPUs-1)
+		f.Close()
+	}
+	if err := execCmd(lxcStartBin, "-n", req.Name); err != nil {
+		writeErr(w, 500, fmt.Errorf("lxc-start: %w", err))
+		return
+	}
+	writeJSON(w, 201, map[string]string{"status": "running", "name": req.Name})
+}
+
+func (s *Server) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if !virt.ValidName(name) {
+		writeErr(w, 400, fmt.Errorf("ungültiger name"))
+		return
+	}
+	_ = execCmd(lxcStopBin, "-n", name, "-k")
+	if err := execCmd(lxcDestroyBin, "-n", name); err != nil {
+		writeErr(w, 500, fmt.Errorf("lxc-destroy: %w", err))
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "deleted"})
+}
+
+type pciDeviceInfo struct {
+	Address string `json:"address"`
+	Vendor  string `json:"vendor"`
+	Device  string `json:"device"`
+	Class   string `json:"class"`
+	Driver  string `json:"driver"`
+}
+
+func (s *Server) handleListPciDevices(w http.ResponseWriter, _ *http.Request) {
+	entries, err := os.ReadDir("/sys/bus/pci/devices")
+	if err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	var devices []pciDeviceInfo
+	for _, e := range entries {
+		addr := e.Name()
+		base := "/sys/bus/pci/devices/" + addr
+		driverLink, _ := os.Readlink(base + "/driver")
+		driver := filepath.Base(driverLink)
+		if driver == "." {
+			driver = ""
+		}
+		devices = append(devices, pciDeviceInfo{
+			Address: addr,
+			Vendor:  readSysFsHex(base + "/vendor"),
+			Device:  readSysFsHex(base + "/device"),
+			Class:   readSysFsHex(base + "/class"),
+			Driver:  driver,
+		})
+	}
+	writeJSON(w, 200, map[string]any{"devices": devices})
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 func (s *Server) vmAction(fn func(name string, body map[string]any) error) http.HandlerFunc {
@@ -666,4 +1012,64 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 func writeErr(w http.ResponseWriter, code int, err error) {
 	slog.Warn("request fehlgeschlagen", "code", code, "err", err)
 	writeJSON(w, code, map[string]string{"error": err.Error()})
+}
+
+// execCmd führt einen externen Befehl mit festem Binärpfad aus (kein Shell-Aufruf).
+func execCmd(bin string, args ...string) error {
+	out, err := exec.Command(bin, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s: %w", filepath.Base(bin), strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
+
+func (s *Server) containerAction(fn func(name string, body map[string]any) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		if !virt.ValidName(name) {
+			writeErr(w, 400, fmt.Errorf("ungültiger name"))
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body)
+		if err := fn(name, body); err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "ok"})
+	}
+}
+
+func validHostname(h string) bool {
+	if h == "" || len(h) > 253 {
+		return false
+	}
+	for _, c := range h {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '.' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func validAlphanumDash(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+func readSysFsHex(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }

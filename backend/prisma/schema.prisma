@@ -168,6 +168,11 @@ model Vm {
   state     VmState @default(provisioning)
   vcpus     Int
   memoryMb  Int
+  bios      String  @default("seabios") // "seabios" | "ovmf"
+  cpuSockets Int    @default(1)
+  cpuCores  Int     @default(1)
+  cpuThreads Int    @default(1)
+  bootOrder String[] @default([])       // ["hd","cdrom","network"]
   nodeId    String
   node      Node    @relation(fields: [nodeId], references: [id])
   ownerId   String
@@ -189,10 +194,24 @@ model Vm {
   backups          Backup[]
   firewallRules    FirewallRule[]
   backupSchedules  BackupSchedule[]
+  pciPassthroughs  PciPassthrough[]
 
   @@index([ownerId])
   @@index([nodeId])
   @@map("vms")
+}
+
+model PciPassthrough {
+  id       String @id @default(uuid())
+  vmId     String
+  vm       Vm     @relation(fields: [vmId], references: [id], onDelete: Cascade)
+  domain   String @default("0x0000")
+  bus      String
+  slot     String
+  function String
+  label    String? // optional menschenlesbarer Name
+
+  @@map("pci_passthroughs")
 }
 
 // ─── LXC Container ───────────────────────────────────────────────────────────

@@ -91,6 +91,11 @@ export class VmsService implements TaskHandler, OnModuleInit {
           name: dto.name,
           vcpus: dto.vcpus,
           memoryMb: dto.memoryMb,
+          bios: dto.uefi ? 'ovmf' : 'seabios',
+          cpuSockets: dto.cpuSockets ?? 1,
+          cpuCores: dto.cpuCores ?? dto.vcpus,
+          cpuThreads: dto.cpuThreads ?? 1,
+          bootOrder: dto.bootOrder ?? [],
           nodeId: node.id,
           ownerId,
           templateId: dto.templateId,
@@ -378,10 +383,19 @@ export class VmsService implements TaskHandler, OnModuleInit {
     switch (kind) {
       case 'vm.provision': {
         onProgress(10);
+        const pciPassthroughs = await this.prisma.pciPassthrough.findMany({ where: { vmId: vm.id } });
         const spec: VmCreateSpec = {
           name: vm.name,
           vcpus: vm.vcpus,
           memoryMb: vm.memoryMb,
+          uefi: (vm as any).bios === 'ovmf',
+          cpuSockets: (vm as any).cpuSockets,
+          cpuCores: (vm as any).cpuCores,
+          cpuThreads: (vm as any).cpuThreads,
+          bootOrder: (vm as any).bootOrder,
+          pciDevices: pciPassthroughs.map((p) => ({
+            domain: p.domain, bus: p.bus, slot: p.slot, function: p.function,
+          })),
           disks: vm.disks.map((d) => ({
             name: d.name,
             sizeGb: d.sizeGb,
@@ -458,11 +472,14 @@ export class VmsService implements TaskHandler, OnModuleInit {
       }
       case 'vm.restore': {
         onProgress(5);
-        await this.agent.restoreVm(node, vm.name, payload.backupPath);
-        await this.prisma.backup.update({
-          where: { id: payload.backupId },
-          data: { state: 'completed' },
-        });
+        const backupFiles: string[] = payload.backupFiles ?? (payload.backupPath ? [payload.backupPath] : []);
+        await this.agent.restoreVm(node, vm.name, backupFiles);
+        if (payload.backupId) {
+          await this.prisma.backup.update({
+            where: { id: payload.backupId },
+            data: { state: 'completed' },
+          });
+        }
         break;
       }
       case 'vm.resize':
@@ -546,6 +563,35 @@ export class VmsService implements TaskHandler, OnModuleInit {
     // Lokal verwaltete Unicast-MAC: 52:54:00 (QEMU-Prefix) + 3 Zufallsbytes
     const suffix = randomBytes(3);
     return `52:54:00:${[...suffix].map((b) => b.toString(16).padStart(2, '0')).join(':')}`;
+  }
+
+  // ─── PCI Passthrough ──────────────────────────────────────────────────────
+
+  async listPci(user: AuthenticatedUser, vmId: string) {
+    await this.get(user, vmId);
+    return this.prisma.pciPassthrough.findMany({ where: { vmId } });
+  }
+
+  async addPci(user: AuthenticatedUser, vmId: string, dto: {
+    domain?: string; bus: string; slot: string; function: string; label?: string;
+  }) {
+    const vm = await this.get(user, vmId);
+    if (vm.state === 'running') throw new BadRequestException('VM muss gestoppt sein für PCI-Passthrough');
+    return this.prisma.pciPassthrough.create({
+      data: {
+        vmId: vm.id,
+        domain: dto.domain ?? '0x0000',
+        bus: dto.bus,
+        slot: dto.slot,
+        function: dto.function,
+        label: dto.label,
+      },
+    });
+  }
+
+  async removePci(user: AuthenticatedUser, vmId: string, pciId: string) {
+    const vm = await this.get(user, vmId);
+    await this.prisma.pciPassthrough.deleteMany({ where: { id: pciId, vmId: vm.id } });
   }
 
   private isAdminScope(user: AuthenticatedUser) {

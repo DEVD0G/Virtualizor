@@ -3,6 +3,7 @@ import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-va
 import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { HeartbeatPayload, NodesService } from './nodes.service';
+import { AgentClientService } from '../agent/agent-client.service';
 
 class CreateJoinTokenDto {
   @IsString() nodeName: string;
@@ -29,7 +30,10 @@ class CreatePoolDto {
 
 @Controller('nodes')
 export class NodesController {
-  constructor(private readonly nodes: NodesService) {}
+  constructor(
+    private readonly nodes: NodesService,
+    private readonly agent: AgentClientService,
+  ) {}
 
   @Get()
   @RequirePermissions('node.read')
@@ -87,6 +91,13 @@ export class NodesController {
   @RequirePermissions('node.manage')
   remove(@Param('id') id: string) {
     return this.nodes.remove(id);
+  }
+
+  @Get(':id/pci-devices')
+  @RequirePermissions('node.read')
+  async pciDevices(@Param('id') id: string) {
+    const node = await this.nodes.get(id);
+    return this.agent.listPciDevices(node as any);
   }
 
   @Post(':id/storage-pools')

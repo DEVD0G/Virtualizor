@@ -4,10 +4,14 @@ package virt
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/xml"
 	"fmt"
 	"net"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -32,12 +36,22 @@ type Nic struct {
 	VlanTag int
 }
 
+type PCIDevice struct {
+	Domain, Bus, Slot, Function string
+}
+
 type DomainSpec struct {
-	Name     string
-	VCPUs    int
-	MemoryMB int
-	Disks    []Disk
-	Nics     []Nic
+	Name       string
+	VCPUs      int
+	MemoryMB   int
+	UEFI       bool
+	CPUSockets int
+	CPUCores   int
+	CPUThreads int
+	BootOrder  []string
+	Disks      []Disk
+	Nics       []Nic
+	PCIDevices []PCIDevice
 }
 
 type VMInfo struct {
@@ -64,13 +78,25 @@ func New() (*Manager, error) {
 const domainXML = `<domain type='kvm'>
   <name>{{.Name}}</name>
   <memory unit='MiB'>{{.MemoryMB}}</memory>
-  <vcpu>{{.VCPUs}}</vcpu>
-  <os>
+  <vcpu placement='static'>{{.VCPUs}}</vcpu>
+  <os{{if .UEFI}} firmware='efi'{{end}}>
     <type arch='x86_64' machine='q35'>hvm</type>
+{{- if .UEFI}}
+    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+    <nvram template='/usr/share/OVMF/OVMF_VARS.fd'>/var/lib/libvirt/qemu/nvram/{{.Name}}_VARS.fd</nvram>
+{{- end}}
+{{- if .BootOrder}}
+{{- range .BootOrder}}    <boot dev='{{.}}'/>
+{{end}}{{- else}}
     <boot dev='hd'/>
+{{- end}}
   </os>
   <features><acpi/><apic/></features>
-  <cpu mode='host-passthrough'/>
+  <cpu mode='host-passthrough'>
+{{- if and .CPUSockets .CPUCores}}
+    <topology sockets='{{.CPUSockets}}' cores='{{.CPUCores}}' threads='{{if .CPUThreads}}{{.CPUThreads}}{{else}}1{{end}}'/>
+{{- end}}
+  </cpu>
   <clock offset='utc'/>
   <on_poweroff>destroy</on_poweroff>
   <on_reboot>restart</on_reboot>
@@ -102,6 +128,13 @@ const domainXML = `<domain type='kvm'>
 {{- end}}
       <model type='virtio'/>
     </interface>
+{{- end}}
+{{- range .PCIDevices}}
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='{{.Domain}}' bus='{{.Bus}}' slot='{{.Slot}}' function='{{.Function}}'/>
+      </source>
+    </hostdev>
 {{- end}}
     <serial type='pty'><target port='0'/></serial>
     <console type='pty'><target type='serial' port='0'/></console>
@@ -398,6 +431,182 @@ func (m *Manager) VncPort(name string) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("kein aktiver VNC-Endpunkt für VM %q", name)
+}
+
+// randomMac erzeugt eine zufällige locally-administered Unicast-MAC-Adresse
+// im QEMU-Präfix-Format 52:54:xx:xx:xx:xx.
+func randomMac() string {
+	b := make([]byte, 6)
+	rand.Read(b)
+	b[0] = (b[0] & 0xfe) | 0x02 // locally administered, unicast
+	return fmt.Sprintf("52:54:%02x:%02x:%02x:%02x", b[2], b[3], b[4], b[5])
+}
+
+// CloneVM erstellt eine vollständige Kopie der Quell-Domain unter einem neuen Namen.
+// Die Quell-Domain wird vorher gestoppt. Gibt einen Fehler zurück, wenn targetName
+// bereits existiert.
+func (m *Manager) CloneVM(sourceName, targetName, imagesDir string) error {
+	// Prüfen ob Ziel bereits existiert
+	if _, err := m.l.DomainLookupByName(targetName); err == nil {
+		return fmt.Errorf("VM %q existiert bereits", targetName)
+	}
+
+	// Quell-Domain holen
+	dom, err := m.l.DomainLookupByName(sourceName)
+	if err != nil {
+		return fmt.Errorf("Quell-VM nicht gefunden: %w", err)
+	}
+
+	// Stoppen falls laufend
+	state, _, _ := m.l.DomainGetState(dom, 0)
+	if libvirt.DomainState(state) == libvirt.DomainRunning {
+		if err := m.Stop(sourceName, true); err != nil {
+			return fmt.Errorf("VM stoppen: %w", err)
+		}
+	}
+
+	// XML der gestoppten Domain holen
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, libvirt.DomainXMLInactive)
+	if err != nil {
+		return fmt.Errorf("DomainGetXMLDesc: %w", err)
+	}
+
+	// Disk-Pfade ermitteln
+	diskPaths, err := m.DiskPaths(sourceName)
+	if err != nil {
+		return fmt.Errorf("DiskPaths: %w", err)
+	}
+
+	// Für jede Disk eine neue Kopie erstellen
+	newDiskPaths := make([]string, len(diskPaths))
+	for i, src := range diskPaths {
+		newPath := filepath.Join(imagesDir, targetName+"-disk"+strconv.Itoa(i)+".qcow2")
+		cmd := exec.Command("/usr/bin/qemu-img", "convert", "-f", "qcow2", "-O", "qcow2", "-c", src, newPath)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			// Bereits erstellte Disks aufräumen
+			for j := 0; j < i; j++ {
+				_ = exec.Command("rm", "-f", newDiskPaths[j]).Run()
+			}
+			return fmt.Errorf("qemu-img convert disk %d: %s: %w", i, out, err)
+		}
+		newDiskPaths[i] = newPath
+	}
+
+	// XML anpassen: Name, UUID, Disk-Pfade, MACs
+	newXML := xmlStr
+
+	// Name ersetzen
+	nameRx := regexp.MustCompile(`<name>[^<]*</name>`)
+	newXML = nameRx.ReplaceAllString(newXML, "<name>"+targetName+"</name>")
+
+	// UUID entfernen (libvirt generiert neue)
+	uuidRx := regexp.MustCompile(`\s*<uuid>[^<]*</uuid>`)
+	newXML = uuidRx.ReplaceAllString(newXML, "")
+
+	// Disk-Pfade ersetzen
+	for i, src := range diskPaths {
+		newXML = strings.ReplaceAll(newXML, src, newDiskPaths[i])
+	}
+
+	// MACs ersetzen
+	macRx := regexp.MustCompile(`<mac address='[^']*'/>`)
+	newXML = macRx.ReplaceAllStringFunc(newXML, func(_ string) string {
+		return "<mac address='" + randomMac() + "'/>"
+	})
+
+	// Neue Domain definieren
+	newDom, err := m.l.DomainDefineXML(newXML)
+	if err != nil {
+		return fmt.Errorf("DomainDefineXML: %w", err)
+	}
+
+	// Neue Domain starten
+	return m.l.DomainCreate(newDom)
+}
+
+// MountISO hängt ein CDROM-Gerät mit dem angegebenen ISO-Pfad an die Domain.
+// Funktioniert sowohl für laufende (live attach) als auch gestoppte VMs.
+func (m *Manager) MountISO(name, isoPath string) error {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	cdromXML := fmt.Sprintf(`<disk type='file' device='cdrom'>
+  <driver name='qemu' type='raw'/>
+  <source file='%s'/>
+  <target dev='sdb' bus='sata'/>
+  <readonly/>
+</disk>`, isoPath)
+
+	state, _, _ := m.l.DomainGetState(dom, 0)
+	var flags uint32
+	if libvirt.DomainState(state) == libvirt.DomainRunning {
+		flags = uint32(libvirt.DomainDeviceModifyLive | libvirt.DomainDeviceModifyConfig)
+	} else {
+		flags = uint32(libvirt.DomainDeviceModifyConfig)
+	}
+	return m.l.DomainAttachDeviceFlags(dom, cdromXML, flags)
+}
+
+// UnmountISO entfernt alle CDROM-Geräte (außer dem cloud-init seed) von der Domain.
+func (m *Manager) UnmountISO(name string) error {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	xmlStr, err := m.l.DomainGetXMLDesc(dom, 0)
+	if err != nil {
+		return err
+	}
+
+	type sourceXML struct {
+		File string `xml:"file,attr"`
+	}
+	type targetXML struct {
+		Dev string `xml:"dev,attr"`
+	}
+	type diskXML struct {
+		Device string    `xml:"device,attr"`
+		Source sourceXML `xml:"source"`
+		Target targetXML `xml:"target"`
+	}
+	type devicesXML struct {
+		Disks []diskXML `xml:"disk"`
+	}
+	type domainDoc struct {
+		Devices devicesXML `xml:"devices"`
+	}
+	var doc domainDoc
+	xml.Unmarshal([]byte(xmlStr), &doc)
+
+	state, _, _ := m.l.DomainGetState(dom, 0)
+	var flags libvirt.DomainDeviceModifyFlags
+	if libvirt.DomainState(state) == libvirt.DomainRunning {
+		flags = libvirt.DomainDeviceModifyLive | libvirt.DomainDeviceModifyConfig
+	} else {
+		flags = libvirt.DomainDeviceModifyConfig
+	}
+
+	for _, disk := range doc.Devices.Disks {
+		if disk.Device == "cdrom" && !strings.HasSuffix(disk.Source.File, "seed.iso") {
+			emptyXML := fmt.Sprintf(`<disk type='file' device='cdrom'>
+  <driver name='qemu' type='raw'/>
+  <target dev='%s' bus='sata'/>
+  <readonly/>
+</disk>`, disk.Target.Dev)
+			_ = m.l.DomainUpdateDeviceFlags(dom, emptyXML, flags)
+		}
+	}
+	return nil
+}
+
+// ExportXML gibt die persistente (inaktive) Domain-XML zurück (für Migration).
+func (m *Manager) ExportXML(name string) (string, error) {
+	dom, err := m.l.DomainLookupByName(name)
+	if err != nil {
+		return "", fmt.Errorf("VM nicht gefunden: %w", err)
+	}
+	return m.l.DomainGetXMLDesc(dom, libvirt.DomainXMLInactive)
 }
 
 func stateString(s libvirt.DomainState) string {

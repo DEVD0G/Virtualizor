@@ -28,12 +28,35 @@ export interface MetricSample {
   vmsRunning: number;
 }
 
+export interface PciPassthrough {
+  id: string;
+  vmId: string;
+  domain: string;
+  bus: string;
+  slot: string;
+  function: string;
+  label: string | null;
+}
+
+export interface NodePciDevice {
+  address: string;
+  vendor: string;
+  device: string;
+  class: string;
+  driver: string;
+}
+
 export interface Vm {
   id: string;
   name: string;
   state: 'provisioning' | 'stopped' | 'running' | 'paused' | 'error' | 'deleting';
   vcpus: number;
   memoryMb: number;
+  bios: 'seabios' | 'ovmf';
+  cpuSockets: number;
+  cpuCores: number;
+  cpuThreads: number;
+  bootOrder: string[];
   errorMsg: string | null;
   tags: string[];
   description: string | null;
