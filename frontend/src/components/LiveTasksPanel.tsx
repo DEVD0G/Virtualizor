@@ -41,18 +41,12 @@ export default function LiveTasksPanel() {
       setTasks((prev) => {
         const existing = prev.find((x) => x.id === t.id);
         const updated: ActiveTask = {
-          id: t.id,
-          kind: t.kind,
-          resourceType: t.resourceType,
-          resourceId: t.resourceId,
-          state: t.state,
-          progress: t.progress,
-          error: t.error,
+          id: t.id, kind: t.kind, resourceType: t.resourceType,
+          resourceId: t.resourceId, state: t.state,
+          progress: t.progress, error: t.error,
           doneAt: t.state === 'succeeded' || t.state === 'failed' ? Date.now() : existing?.doneAt,
         };
-        if (existing) {
-          return prev.map((x) => (x.id === t.id ? updated : x));
-        }
+        if (existing) return prev.map((x) => (x.id === t.id ? updated : x));
         return [...prev.slice(-9), updated];
       });
     }
@@ -60,7 +54,6 @@ export default function LiveTasksPanel() {
     return () => window.removeEventListener('vcp:task:update', onUpdate);
   }, []);
 
-  // Auto-remove completed tasks after 4 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const cutoff = Date.now() - 4000;
@@ -82,35 +75,43 @@ export default function LiveTasksPanel() {
         return (
           <div
             key={t.id}
-            className={`rounded-lg border px-3 py-2 shadow-lg text-xs transition-all ${
-              isError
-                ? 'border-red-500/30 bg-red-500/10 dark:bg-red-900/20'
+            className="rounded-xl px-3 py-2.5 text-xs shadow-lg transition-all"
+            style={{
+              background: isError
+                ? 'rgba(239,68,68,0.1)'
                 : isDone
-                ? 'border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-900/20'
-                : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
-            }`}
+                ? 'rgba(34,197,94,0.1)'
+                : 'var(--surface)',
+              border: `1px solid ${isError ? 'rgba(239,68,68,0.25)' : isDone ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
+            }}
           >
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className={`font-medium ${isError ? 'text-red-600 dark:text-red-400' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span
+                className="font-semibold"
+                style={{
+                  color: isError ? '#ef4444' : isDone ? '#22c55e' : 'var(--tx-1)',
+                }}
+              >
                 {KIND_LABELS[t.kind] ?? t.kind}
               </span>
-              <span className="text-slate-400 font-mono shrink-0">{t.resourceId.slice(0, 8)}</span>
+              <span className="shrink-0 font-mono" style={{ color: 'var(--tx-3)' }}>
+                {t.resourceId.slice(0, 8)}
+              </span>
             </div>
             {!isDone && (
-              <div className="h-1 w-full rounded-full bg-slate-200 dark:bg-slate-700">
+              <div className="h-1 w-full rounded-full" style={{ background: 'var(--border)' }}>
                 <div
-                  className="h-1 rounded-full bg-brand-500 transition-all duration-500"
-                  style={{ width: `${t.progress}%` }}
+                  className="h-1 rounded-full transition-all duration-500"
+                  style={{ width: `${t.progress}%`, background: 'var(--brand)' }}
                 />
               </div>
             )}
-            {isDone && (
-              <div className={`text-xs ${isError ? 'text-red-500' : 'text-emerald-500'}`}>
+            {isDone ? (
+              <div className="text-xs" style={{ color: isError ? '#ef4444' : '#22c55e' }}>
                 {isError ? (t.error ?? 'Fehler') : 'Abgeschlossen'}
               </div>
-            )}
-            {!isDone && (
-              <div className="mt-1 text-right text-slate-400">{t.progress}%</div>
+            ) : (
+              <div className="mt-1 text-right" style={{ color: 'var(--tx-3)' }}>{t.progress}%</div>
             )}
           </div>
         );

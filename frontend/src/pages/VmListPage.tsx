@@ -122,15 +122,18 @@ export default function VmListPage() {
             Filter zurücksetzen
           </button>
         )}
-        <span className="ml-auto self-center text-sm text-slate-500">
+        <span className="ml-auto self-center text-sm" style={{ color: 'var(--tx-2)' }}>
           {filtered.length}{(search || stateFilter || nodeFilter || tagFilter) ? ` von ${vms?.length ?? 0}` : ''} VMs
         </span>
       </div>
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 dark:border-brand-500/30 dark:bg-brand-500/10">
-          <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
+        <div
+          className="flex items-center gap-3 rounded-lg px-4 py-2.5"
+          style={{ background: 'var(--brand-sub)', border: '1px solid var(--brand-ring)' }}
+        >
+          <span className="text-sm font-medium" style={{ color: 'var(--brand)' }}>
             {selected.size} VM{selected.size > 1 ? 's' : ''} ausgewählt
           </span>
           <div className="flex gap-2">
@@ -157,7 +160,7 @@ export default function VmListPage() {
               </button>
             )}
           </div>
-          <button className="ml-auto text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          <button className="ml-auto text-xs hover:underline" style={{ color: 'var(--tx-3)' }}
             onClick={() => setSelected(new Set())}>
             Auswahl aufheben
           </button>
@@ -183,7 +186,7 @@ export default function VmListPage() {
             {isLoading && <tr><td colSpan={9} className="text-center text-slate-400">Lade…</td></tr>}
             {filtered.map((vm) => (
               <tr key={vm.id}
-                className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${selected.has(vm.id) ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}>
+                style={selected.has(vm.id) ? { background: 'var(--brand-sub)' } : undefined}>
                 <td>
                   <input
                     type="checkbox"
@@ -200,7 +203,11 @@ export default function VmListPage() {
                 <td>
                   <div className="flex flex-wrap gap-1">
                     {vm.tags?.map((t) => (
-                      <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{t}</span>
+                      <span
+                        key={t}
+                        className="rounded-full px-2 py-0.5 text-xs"
+                        style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}
+                      >{t}</span>
                     ))}
                   </div>
                 </td>

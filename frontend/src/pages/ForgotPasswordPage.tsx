@@ -23,29 +23,40 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <div className="card w-full max-w-sm space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 font-bold text-white">V</div>
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+      <div className="card w-full max-w-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-base font-bold text-white"
+            style={{ background: 'var(--brand)' }}
+          >
+            V
+          </div>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Passwort vergessen</h1>
-            <p className="text-xs text-slate-500">Link zum Zurücksetzen anfordern</p>
+            <h1 className="text-base font-semibold" style={{ color: 'var(--tx-1)' }}>
+              Passwort vergessen
+            </h1>
+            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>Link zum Zurücksetzen anfordern</p>
           </div>
         </div>
 
         {sent ? (
           <div className="space-y-4">
-            <p className="text-sm text-green-600 dark:text-green-400">
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">
               E-Mail gesendet! Bitte prüfen Sie Ihr Postfach.
             </p>
-            <Link to="/login" className="text-xs text-brand-500 hover:underline">
+            <Link
+              to="/login"
+              className="text-xs hover:underline"
+              style={{ color: 'var(--brand)' }}
+            >
               Zurück zur Anmeldung
             </Link>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">E-Mail</label>
+              <label className="label">E-Mail</label>
               <input
                 className="input"
                 type="email"
@@ -56,11 +67,15 @@ export default function ForgotPasswordPage() {
               />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
-            <button className="btn-primary w-full justify-center" disabled={busy}>
+            <button className="btn-primary w-full" disabled={busy}>
               {busy ? 'Sende…' : 'Link anfordern'}
             </button>
             <div className="text-center">
-              <Link to="/login" className="text-xs text-slate-500 hover:underline">
+              <Link
+                to="/login"
+                className="text-xs hover:underline"
+                style={{ color: 'var(--tx-2)' }}
+              >
                 Zurück zur Anmeldung
               </Link>
             </div>

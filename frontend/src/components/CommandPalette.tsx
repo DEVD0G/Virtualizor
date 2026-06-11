@@ -20,9 +20,9 @@ interface Props {
 
 const TYPE_ICON: Record<Item['type'], string> = { vm: 'VM', container: 'CT', node: 'Node' };
 const TYPE_COLOR: Record<Item['type'], string> = {
-  vm: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
-  container: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
-  node: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400',
+  vm:        'bg-[var(--brand-sub)] text-[var(--brand)]',
+  container: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+  node:      'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
 };
 
 export default function CommandPalette({ open, onClose }: Props) {
@@ -113,24 +113,33 @@ export default function CommandPalette({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700"
+        className="w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 dark:border-slate-800">
-          <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div
+          className="flex items-center gap-3 px-4 py-3.5"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            style={{ color: 'var(--tx-3)' }}>
             <circle cx="11" cy="11" r="8" strokeWidth="2" />
             <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <input
             ref={inputRef}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+            className="flex-1 bg-transparent text-sm outline-none"
+            style={{ color: 'var(--tx-1)' }}
             placeholder="VMs, Container, Nodes suchen…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKey}
           />
-          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-400 dark:border-slate-700 sm:block">
+          <kbd
+            className="hidden rounded px-1.5 py-0.5 text-xs sm:block"
+            style={{ border: '1px solid var(--border)', color: 'var(--tx-3)' }}
+          >
             Esc
           </kbd>
         </div>
@@ -141,11 +150,10 @@ export default function CommandPalette({ open, onClose }: Props) {
             {items.map((item, i) => (
               <li
                 key={`${item.type}-${item.id}`}
-                className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors ${
-                  i === cursor
-                    ? 'bg-brand-50 dark:bg-brand-500/10'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                }`}
+                className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors"
+                style={{
+                  background: i === cursor ? 'var(--surface-2)' : undefined,
+                }}
                 onClick={() => select(item)}
                 onMouseEnter={() => setCursor(i)}
               >
@@ -153,23 +161,30 @@ export default function CommandPalette({ open, onClose }: Props) {
                   {TYPE_ICON[item.type]}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{item.label}</span>
-                  <span className="block truncate text-xs text-slate-400">{item.sub}</span>
+                  <span className="block truncate text-sm font-medium" style={{ color: 'var(--tx-1)' }}>
+                    {item.label}
+                  </span>
+                  <span className="block truncate text-xs" style={{ color: 'var(--tx-3)' }}>
+                    {item.sub}
+                  </span>
                 </span>
                 {i === cursor && (
-                  <kbd className="shrink-0 text-xs text-slate-400">↵</kbd>
+                  <kbd className="shrink-0 text-xs" style={{ color: 'var(--tx-3)' }}>↵</kbd>
                 )}
               </li>
             ))}
           </ul>
         ) : (
-          <div className="px-4 py-10 text-center text-sm text-slate-400">
+          <div className="px-4 py-10 text-center text-sm" style={{ color: 'var(--tx-3)' }}>
             Keine Ergebnisse für „{query}"
           </div>
         )}
 
         {/* Footer hints */}
-        <div className="flex items-center gap-4 border-t border-slate-100 px-4 py-2 text-xs text-slate-400 dark:border-slate-800">
+        <div
+          className="flex items-center gap-4 px-4 py-2 text-xs"
+          style={{ borderTop: '1px solid var(--border)', color: 'var(--tx-3)' }}
+        >
           <span>
             <kbd className="mr-0.5 rounded border border-current px-1 py-px">↑</kbd>
             <kbd className="mr-1 rounded border border-current px-1 py-px">↓</kbd>

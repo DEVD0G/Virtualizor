@@ -18,15 +18,31 @@ function MessageBubble({
       <div className="max-w-[85%]">
         {!isUser && (
           <div className="mb-1 flex items-center gap-1.5">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-xs text-white font-bold">V</div>
-            <span className="text-xs font-medium text-slate-500">VCP Assistant</span>
+            <div
+              className="flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white"
+              style={{ background: 'var(--brand)' }}
+            >
+              V
+            </div>
+            <span className="text-xs font-medium" style={{ color: 'var(--tx-2)' }}>VCP Assistant</span>
           </div>
         )}
-        <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${isUser ? 'bg-brand-500 text-white rounded-tr-sm' : 'bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'}`}>
+        <div
+          className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+            isUser ? 'rounded-tr-sm text-white' : 'rounded-tl-sm shadow-sm'
+          }`}
+          style={
+            isUser
+              ? { background: 'var(--brand)' }
+              : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--tx-1)' }
+          }
+        >
           {msg.content.split('\n').map((line, i, arr) => (
             <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
           ))}
-          {msg.streaming && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm" />}
+          {msg.streaming && (
+            <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-current" />
+          )}
         </div>
         {msg.actionPlan && msg.planId && (
           <ActionPlanCard
@@ -84,7 +100,6 @@ export default function AiPanel() {
 
     const msgId = crypto.randomUUID();
     let accText = '';
-
     const assistantMsg: AiChatMessage = { id: msgId, role: 'assistant', content: '', streaming: true } as any;
     setMessages((prev) => [...prev, assistantMsg]);
 
@@ -140,7 +155,11 @@ export default function AiPanel() {
         prev.map((m) => (m.planId === planId ? { ...m, planStatus: 'done', __results: results } as any : m)),
       );
       const ok = results.every((r) => r.success);
-      addAssistantNote(ok ? `Plan ausgeführt (${results.length} Schritt${results.length !== 1 ? 'e' : ''}).` : `${results.filter((r) => !r.success).length} Fehler bei der Ausführung.`);
+      addAssistantNote(
+        ok
+          ? `Plan ausgeführt (${results.length} Schritt${results.length !== 1 ? 'e' : ''}).`
+          : `${results.filter((r) => !r.success).length} Fehler bei der Ausführung.`,
+      );
     } catch (err: any) {
       setMessages((prev) => prev.map((m) => (m.planId === planId ? { ...m, planStatus: 'done' } : m)));
       addAssistantNote(`Fehler: ${err.message}`);
@@ -158,37 +177,75 @@ export default function AiPanel() {
 
   return (
     <>
+      {/* FAB */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center rounded-full bg-brand-500 shadow-lg hover:bg-brand-600 transition-all focus:outline-none"
+        className="fixed bottom-6 right-6 z-40 flex h-13 w-13 items-center justify-center rounded-full shadow-lg transition-all focus:outline-none hover:scale-105 active:scale-95"
+        style={{ background: 'var(--brand)', width: '52px', height: '52px' }}
         title="KI-Assistent"
-        style={{ width: '52px', height: '52px' }}
       >
-        <span className="text-white text-xl select-none">{open ? '×' : '✦'}</span>
+        <span className="select-none text-xl text-white">{open ? '×' : '✦'}</span>
       </button>
 
+      {/* Panel */}
       {open && (
-        <div className="fixed bottom-20 right-6 z-40 flex w-[380px] max-h-[70vh] flex-col rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2 rounded-t-2xl border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-white">V</div>
+        <div
+          className="fixed bottom-20 right-6 z-40 flex w-[380px] max-h-[70vh] flex-col rounded-2xl shadow-xl"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center gap-2 rounded-t-2xl px-4 py-3"
+            style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+          >
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{ background: 'var(--brand)' }}
+            >
+              V
+            </div>
             <div>
-              <div className="text-sm font-semibold">VCP Assistant</div>
-              <div className="text-xs text-slate-400">KI-gestützte Infrastrukturverwaltung</div>
+              <div className="text-sm font-semibold" style={{ color: 'var(--tx-1)' }}>VCP Assistant</div>
+              <div className="text-xs" style={{ color: 'var(--tx-3)' }}>KI-gestützte Infrastrukturverwaltung</div>
             </div>
             {messages.length > 0 && (
-              <button className="ml-auto text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" onClick={() => setMessages([])}>
+              <button
+                className="ml-auto text-xs hover:underline"
+                style={{ color: 'var(--tx-3)' }}
+                onClick={() => setMessages([])}
+              >
                 Leeren
               </button>
             )}
           </div>
 
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: '200px' }}>
             {messages.length === 0 && (
               <div className="space-y-3">
-                <p className="text-xs text-slate-400 text-center">Stelle Fragen oder lass mich Infrastrukturänderungen planen.</p>
+                <p className="text-center text-xs" style={{ color: 'var(--tx-3)' }}>
+                  Stelle Fragen oder lass mich Infrastrukturänderungen planen.
+                </p>
                 <div className="space-y-1.5">
                   {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => send(s)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-600 hover:border-brand-300 hover:bg-brand-50 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700">
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="w-full rounded-xl px-3 py-2 text-left text-xs transition-colors"
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--tx-2)',
+                      }}
+                      onMouseOver={(e) => {
+                        (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand)';
+                        (e.currentTarget as HTMLElement).style.background = 'var(--brand-sub)';
+                      }}
+                      onMouseOut={(e) => {
+                        (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
+                        (e.currentTarget as HTMLElement).style.background = 'var(--surface)';
+                      }}
+                    >
                       {s}
                     </button>
                   ))}
@@ -201,10 +258,14 @@ export default function AiPanel() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t border-slate-200 bg-white p-3 rounded-b-2xl dark:border-slate-700 dark:bg-slate-800">
+          {/* Input */}
+          <div
+            className="rounded-b-2xl p-3"
+            style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+          >
             <div className="flex gap-2">
               <input
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                className="input flex-1"
                 placeholder="Frage stellen oder Aktion beschreiben…"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -212,7 +273,8 @@ export default function AiPanel() {
                 disabled={loading}
               />
               <button
-                className="rounded-xl bg-brand-500 px-3 py-2 text-white hover:bg-brand-600 disabled:opacity-40 transition-colors"
+                className="rounded-xl px-3 py-2 text-white transition-opacity disabled:opacity-40"
+                style={{ background: 'var(--brand)' }}
                 onClick={() => send()}
                 disabled={loading || !input.trim()}
               >

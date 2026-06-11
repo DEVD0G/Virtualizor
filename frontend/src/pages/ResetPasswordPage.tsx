@@ -33,42 +33,54 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 font-bold text-white">V</div>
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+      <form onSubmit={submit} className="card w-full max-w-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-base font-bold text-white"
+            style={{ background: 'var(--brand)' }}
+          >
+            V
+          </div>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Passwort zurücksetzen</h1>
-            <p className="text-xs text-slate-500">Neues Passwort festlegen</p>
+            <h1 className="text-base font-semibold" style={{ color: 'var(--tx-1)' }}>
+              Passwort zurücksetzen
+            </h1>
+            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>Neues Passwort festlegen</p>
           </div>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Neues Passwort</label>
-          <input
-            className="input"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={8}
-            autoFocus
-          />
+        <div className="space-y-4">
+          <div>
+            <label className="label">Neues Passwort</label>
+            <input
+              className="input"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={8}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">Passwort bestätigen</label>
+            <input
+              className="input"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              minLength={8}
+            />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <button
+            className="btn-primary w-full"
+            disabled={busy || !newPassword || !confirm}
+          >
+            {busy ? 'Speichere…' : 'Passwort speichern'}
+          </button>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Passwort bestätigen</label>
-          <input
-            className="input"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            minLength={8}
-          />
-        </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <button className="btn-primary w-full justify-center" disabled={busy || !newPassword || !confirm}>
-          {busy ? 'Speichere…' : 'Passwort speichern'}
-        </button>
       </form>
     </div>
   );

@@ -11,8 +11,13 @@ import StatusBadge from '../components/StatusBadge';
 function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
   return (
     <div className="card">
-      <div className="text-sm text-slate-500 dark:text-slate-400">{label}</div>
-      <div className={`mt-1 text-3xl font-semibold ${accent ? 'text-brand-500' : ''}`}>{value}</div>
+      <div className="text-sm" style={{ color: 'var(--tx-2)' }}>{label}</div>
+      <div
+        className="mt-1 text-3xl font-semibold"
+        style={{ color: accent ? 'var(--brand)' : 'var(--tx-1)' }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -28,37 +33,43 @@ function NodeCard({ node }: { node: Node }) {
   const ramPct = node.memoryMb > 0 ? ((node.memUsedMb ?? 0) / node.memoryMb) * 100 : 0;
   const cpuData = metrics.map((m) => m.cpuPercent);
   const ramData = metrics.map((m) => node.memoryMb > 0 ? (m.memUsedMb / node.memoryMb) * 100 : 0);
-  const barColor = (pct: number) => pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  const barColor = (pct: number) => pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#22c55e';
 
   return (
-    <Link to={`/nodes/${node.id}`} className="card block space-y-3 hover:shadow-md transition-shadow">
+    <Link to={`/nodes/${node.id}`} className="card block space-y-3 transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-sm">{node.name}</span>
-        <span className="text-xs text-slate-500">{node._count?.vms ?? 0} VMs</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--tx-1)' }}>{node.name}</span>
+        <span className="text-xs" style={{ color: 'var(--tx-3)' }}>{node._count?.vms ?? 0} VMs</span>
       </div>
       <div className="space-y-2">
         <div className="space-y-1">
-          <div className="flex justify-between text-xs text-slate-500">
+          <div className="flex justify-between text-xs" style={{ color: 'var(--tx-2)' }}>
             <span>CPU ({node.cpuCores} Cores)</span>
             <span>{cpuPct.toFixed(0)}%</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-1 flex-1 rounded-full bg-slate-200 dark:bg-slate-700">
-              <div className={`h-1 rounded-full ${barColor(cpuPct)}`} style={{ width: `${Math.min(cpuPct, 100)}%` }} />
+            <div className="h-1 flex-1 rounded-full" style={{ background: 'var(--border)' }}>
+              <div
+                className="h-1 rounded-full transition-all"
+                style={{ width: `${Math.min(cpuPct, 100)}%`, background: barColor(cpuPct) }}
+              />
             </div>
-            {cpuData.length >= 2 && <Sparkline data={cpuData} width={60} height={20} max={100} color="#6366f1" />}
+            {cpuData.length >= 2 && <Sparkline data={cpuData} width={60} height={20} max={100} color="var(--brand)" />}
           </div>
         </div>
         <div className="space-y-1">
-          <div className="flex justify-between text-xs text-slate-500">
+          <div className="flex justify-between text-xs" style={{ color: 'var(--tx-2)' }}>
             <span>RAM ({(node.memoryMb / 1024).toFixed(0)} GiB)</span>
             <span>{ramPct.toFixed(0)}%</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-1 flex-1 rounded-full bg-slate-200 dark:bg-slate-700">
-              <div className={`h-1 rounded-full ${barColor(ramPct)}`} style={{ width: `${Math.min(ramPct, 100)}%` }} />
+            <div className="h-1 flex-1 rounded-full" style={{ background: 'var(--border)' }}>
+              <div
+                className="h-1 rounded-full transition-all"
+                style={{ width: `${Math.min(ramPct, 100)}%`, background: barColor(ramPct) }}
+              />
             </div>
-            {ramData.length >= 2 && <Sparkline data={ramData} width={60} height={20} max={100} color="#10b981" />}
+            {ramData.length >= 2 && <Sparkline data={ramData} width={60} height={20} max={100} color="#22c55e" />}
           </div>
         </div>
       </div>
@@ -67,10 +78,10 @@ function NodeCard({ node }: { node: Node }) {
 }
 
 const taskStateColors: Record<string, string> = {
-  queued: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
-  running: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  succeeded: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  failed: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  queued:    'bg-slate-400/15 text-slate-600 dark:text-slate-400',
+  running:   'bg-[var(--brand-sub)] text-[var(--brand)]',
+  succeeded: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  failed:    'bg-red-500/15 text-red-600 dark:text-red-400',
 };
 
 export default function DashboardPage() {
@@ -111,18 +122,23 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
       {isAssisted && (
-        <div className="card bg-gradient-to-br from-brand-50 to-white dark:from-brand-500/10 dark:to-slate-900 border-brand-200 dark:border-brand-500/30">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl">✦</span>
+        <div
+          className="card"
+          style={{ borderColor: 'var(--brand-ring)', background: 'linear-gradient(135deg, var(--brand-sub) 0%, var(--surface) 100%)' }}
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-2xl" style={{ color: 'var(--brand)' }}>✦</span>
             <div>
-              <h2 className="font-semibold">Was möchtest du tun?</h2>
-              <p className="text-xs text-slate-500">Beschreibe dein Ziel — der KI-Assistent hilft dir Schritt für Schritt.</p>
+              <h2 className="font-semibold" style={{ color: 'var(--tx-1)' }}>Was möchtest du tun?</h2>
+              <p className="text-xs" style={{ color: 'var(--tx-2)' }}>
+                Beschreibe dein Ziel — der KI-Assistent hilft dir Schritt für Schritt.
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder={'z.B. "Erstelle einen neuen Webserver" oder "Warum ist meine VM langsam?"'}
+              placeholder='z.B. "Erstelle einen neuen Webserver" oder "Warum ist meine VM langsam?"'
               value={aiInput}
               onChange={(e) => setAiInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && openAi()}
@@ -131,7 +147,18 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {['Neuen Server erstellen', 'Ressourcenauslastung prüfen', 'Backup einrichten'].map((s) => (
-              <button key={s} onClick={() => openAi(s)} className="rounded-full border border-brand-200 px-3 py-1 text-xs text-brand-600 hover:bg-brand-100 dark:border-brand-500/40 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors">
+              <button
+                key={s}
+                onClick={() => openAi(s)}
+                className="rounded-full px-3 py-1 text-xs transition-colors"
+                style={{
+                  border: '1px solid var(--brand-ring)',
+                  color: 'var(--brand)',
+                  background: 'transparent',
+                }}
+                onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--brand-sub)'; }}
+                onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
                 {s}
               </button>
             ))}
@@ -154,9 +181,7 @@ export default function DashboardPage() {
       {/* Node utilisation cards */}
       {can('node.read') && nodes && nodes.filter((n) => n.state === 'online').length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wide">
-            Node-Auslastung
-          </h2>
+          <h2 className="section-title mb-3">Node-Auslastung</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {nodes.filter((n) => n.state === 'online').map((n) => (
               <NodeCard key={n.id} node={n} />
@@ -169,8 +194,8 @@ export default function DashboardPage() {
         {/* Recent VMs */}
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Neueste VMs</h2>
-            <Link to="/vms" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
+            <h2 className="font-semibold" style={{ color: 'var(--tx-1)' }}>Neueste VMs</h2>
+            <Link to="/vms" className="text-sm hover:underline" style={{ color: 'var(--brand)' }}>Alle anzeigen →</Link>
           </div>
           <table className="table-base">
             <thead>
@@ -195,8 +220,8 @@ export default function DashboardPage() {
         {/* Recent Containers */}
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Neueste Container</h2>
-            <Link to="/containers" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
+            <h2 className="font-semibold" style={{ color: 'var(--tx-1)' }}>Neueste Container</h2>
+            <Link to="/containers" className="text-sm hover:underline" style={{ color: 'var(--brand)' }}>Alle anzeigen →</Link>
           </div>
           <table className="table-base">
             <thead>
@@ -223,14 +248,14 @@ export default function DashboardPage() {
       {can('node.read') && (
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Letzte Jobs</h2>
-            <Link to="/tasks" className="text-sm text-brand-500 hover:underline">Alle anzeigen →</Link>
+            <h2 className="font-semibold" style={{ color: 'var(--tx-1)' }}>Letzte Jobs</h2>
+            <Link to="/tasks" className="text-sm hover:underline" style={{ color: 'var(--brand)' }}>Alle anzeigen →</Link>
           </div>
           <div className="space-y-2">
             {recentTasks?.map((t) => (
               <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-mono text-xs text-slate-500 w-32 truncate">{t.kind}</span>
-                <span className="flex-1 truncate text-slate-700 dark:text-slate-300 text-xs">
+                <span className="w-32 truncate font-mono text-xs" style={{ color: 'var(--tx-3)' }}>{t.kind}</span>
+                <span className="flex-1 truncate text-xs" style={{ color: 'var(--tx-2)' }}>
                   {t.resourceType}/{t.resourceId.slice(0, 8)}
                 </span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${taskStateColors[t.state] ?? ''}`}>
@@ -239,7 +264,7 @@ export default function DashboardPage() {
               </div>
             ))}
             {!recentTasks?.length && (
-              <p className="text-center text-slate-400 text-sm">Keine Jobs</p>
+              <p className="text-center text-sm" style={{ color: 'var(--tx-3)' }}>Keine Jobs</p>
             )}
           </div>
         </div>

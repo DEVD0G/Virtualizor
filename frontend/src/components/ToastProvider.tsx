@@ -43,7 +43,6 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
-  // Listen for task completion events dispatched by useSocket
   useEffect(() => {
     function onTaskUpdate(e: Event) {
       const task = (e as CustomEvent<TaskUpdateEvent>).detail;
@@ -57,27 +56,34 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('vcp:task:update', onTaskUpdate);
   }, [toast]);
 
+  const ICON = { success: '✓', error: '✗', info: 'ℹ' } as const;
+
   return (
     <Ctx.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-full max-w-sm flex-col gap-2">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 rounded-lg px-4 py-3 shadow-xl text-sm animate-in slide-in-from-right-4 ${
-              t.kind === 'success' ? 'bg-emerald-600 text-white' :
-              t.kind === 'error'   ? 'bg-red-600 text-white' :
-              'bg-slate-800 text-white'
+            className={`toast-enter pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-lg ${
+              t.kind === 'success'
+                ? 'bg-emerald-600 text-white'
+                : t.kind === 'error'
+                ? 'bg-red-600 text-white'
+                : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--tx-1)]'
             }`}
           >
-            <span className="shrink-0 text-base font-bold">
-              {t.kind === 'success' ? '✓' : t.kind === 'error' ? '✗' : 'ℹ'}
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium">{t.title}</div>
-              {t.message && <div className="mt-0.5 text-xs opacity-80 break-words">{t.message}</div>}
+            <span className="shrink-0 text-base font-bold">{ICON[t.kind]}</span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">{t.title}</div>
+              {t.message && <div className="mt-0.5 break-words text-xs opacity-80">{t.message}</div>}
             </div>
-            <button onClick={() => dismiss(t.id)} className="shrink-0 text-white/70 hover:text-white text-lg leading-none">×</button>
+            <button
+              onClick={() => dismiss(t.id)}
+              className="shrink-0 text-lg leading-none opacity-60 hover:opacity-100"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
