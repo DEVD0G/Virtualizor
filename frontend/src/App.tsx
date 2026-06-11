@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage';
 import TasksPage from './pages/TasksPage';
 import ContainerDetailPage from './pages/ContainerDetailPage';
 import ContainersPage from './pages/ContainersPage';
+import CreateContainerPage from './pages/CreateContainerPage';
 import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
@@ -104,6 +105,7 @@ export default function App() {
         <Route path="/vms/new" element={<CreateVmPage />} />
         <Route path="/vms/:id" element={<VmDetailPage />} />
         <Route path="/containers" element={<ContainersPage />} />
+        <Route path="/containers/new" element={<CreateContainerPage />} />
         <Route path="/containers/:id" element={<ContainerDetailPage />} />
         <Route path="/nodes" element={<NodesPage />} />
         <Route path="/nodes/:id" element={<NodeDetailPage />} />

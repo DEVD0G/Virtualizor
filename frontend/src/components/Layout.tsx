@@ -8,6 +8,8 @@ import { useUiMode } from '../contexts/UiModeContext';
 import { useLiveEvents } from '../hooks/useSocket';
 import AiPanel from './AiPanel';
 import CommandPalette from './CommandPalette';
+import LiveTasksPanel from './LiveTasksPanel';
+import ToastProvider from './ToastProvider';
 
 const nav = [
   { to: '/', label: 'Dashboard', perm: null },
@@ -59,6 +61,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   });
 
   return (
+    <ToastProvider>
     <div className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <aside className="flex w-60 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 px-5 py-5">
@@ -141,5 +144,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
       <AiPanel />
     </div>
+    <LiveTasksPanel />
+    </ToastProvider>
   );
 }

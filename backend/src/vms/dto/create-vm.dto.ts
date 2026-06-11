@@ -33,4 +33,6 @@ export class CreateVmDto {
   @IsOptional() @IsString() templateId?: string;
   @IsOptional() @IsObject() cloudInit?: { sshKeys?: string[]; userData?: string };
   @IsOptional() @IsUUID() ownerId?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  @IsOptional() @IsString() description?: string;
 }

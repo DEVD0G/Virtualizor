@@ -143,6 +143,9 @@ export class TasksService implements OnModuleInit, OnModuleDestroy {
     const task = await this.prisma.task.update({ where: { id }, data });
     this.events.emitTaskUpdate({
       id: task.id,
+      kind: task.kind,
+      resourceType: task.resourceType,
+      resourceId: task.resourceId,
       state: task.state,
       progress: task.progress,
       error: task.error,

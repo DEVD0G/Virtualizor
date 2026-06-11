@@ -95,6 +95,8 @@ export class VmsService implements TaskHandler, OnModuleInit {
           ownerId,
           templateId: dto.templateId,
           cloudInit: dto.cloudInit as Prisma.InputJsonValue,
+          tags: dto.tags ?? [],
+          description: dto.description,
         },
       });
 

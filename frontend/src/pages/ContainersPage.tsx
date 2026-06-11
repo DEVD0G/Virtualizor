@@ -8,32 +8,9 @@ import StatusBadge from '../components/StatusBadge';
 
 const CT_STATES = ['provisioning', 'stopped', 'running', 'error', 'deleting'] as const;
 
-const OS_TEMPLATES = [
-  'debian-12',
-  'ubuntu-22.04',
-  'ubuntu-24.04',
-  'alpine-3.19',
-  'rockylinux-9',
-  'fedora-39',
-];
-
-const defaultForm = {
-  name: '',
-  vcpus: 1,
-  memoryMb: 512,
-  diskGb: 10,
-  osTemplate: 'debian-12',
-  ipAddress: '',
-  description: '',
-  nodeId: '',
-};
-
 export default function ContainersPage() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState(defaultForm);
-  const [formErr, setFormErr] = useState('');
 
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
@@ -56,29 +33,11 @@ export default function ContainersPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['containers'] });
 
-  const create = useMutation({
-    mutationFn: (body: typeof form & { nodeId?: string }) => api('/containers', { method: 'POST', body }),
-    onSuccess: () => { invalidate(); setShowCreate(false); setForm(defaultForm); setFormErr(''); },
-    onError: (e: any) => setFormErr(e?.message ?? 'Fehler beim Erstellen'),
-  });
-
   const action = useMutation({
     mutationFn: ({ path, method }: { path: string; method?: string }) =>
       api(path, { method: method ?? 'POST', body: {} }),
     onSettled: invalidate,
   });
-
-  function handleCreate() {
-    if (!/^[a-z0-9][-a-z0-9]{2,62}$/.test(form.name)) {
-      setFormErr('Name: 3–63 Zeichen, nur a-z, 0-9 und Bindestrich');
-      return;
-    }
-    const body: any = { ...form };
-    if (!body.nodeId) delete body.nodeId;
-    if (!body.ipAddress) delete body.ipAddress;
-    if (!body.description) delete body.description;
-    create.mutate(body);
-  }
 
   const filtered = useMemo(() => {
     if (!containers) return [];
@@ -129,7 +88,7 @@ export default function ContainersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">LXC Container</h1>
         {can('vm.create') && (
-          <button className="btn-primary" onClick={() => setShowCreate(true)}>+ Neuer Container</button>
+          <Link to="/containers/new" className="btn-primary">+ Neuer Container</Link>
         )}
       </div>
 
@@ -198,78 +157,6 @@ export default function ContainersPage() {
             onClick={() => setSelected(new Set())}>
             Auswahl aufheben
           </button>
-        </div>
-      )}
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
-            <h3 className="mb-4 text-lg font-semibold">Neuen Container erstellen</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="label">Name</label>
-                <input className="input" value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value.replace(/[^a-z0-9-]/g, '') })}
-                  placeholder="mein-container" />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="label">vCPUs</label>
-                  <input className="input" type="number" min="1" max="128" value={form.vcpus}
-                    onChange={(e) => setForm({ ...form, vcpus: parseInt(e.target.value) || 1 })} />
-                </div>
-                <div>
-                  <label className="label">RAM (MiB)</label>
-                  <input className="input" type="number" min="128" step="128" value={form.memoryMb}
-                    onChange={(e) => setForm({ ...form, memoryMb: parseInt(e.target.value) || 512 })} />
-                </div>
-                <div>
-                  <label className="label">Disk (GB)</label>
-                  <input className="input" type="number" min="5" max="4096" value={form.diskGb}
-                    onChange={(e) => setForm({ ...form, diskGb: parseInt(e.target.value) || 10 })} />
-                </div>
-              </div>
-              <div>
-                <label className="label">OS-Template</label>
-                <select className="input" value={form.osTemplate}
-                  onChange={(e) => setForm({ ...form, osTemplate: e.target.value })}>
-                  {OS_TEMPLATES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">IP-Adresse (optional)</label>
-                  <input className="input" value={form.ipAddress} placeholder="192.168.1.100"
-                    onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Node (optional)</label>
-                  <select className="input" value={form.nodeId}
-                    onChange={(e) => setForm({ ...form, nodeId: e.target.value })}>
-                    <option value="">Automatisch</option>
-                    {nodes?.filter((n) => n.state === 'online').map((n) => (
-                      <option key={n.id} value={n.id}>{n.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="label">Beschreibung (optional)</label>
-                <input className="input" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              {formErr && <p className="text-sm text-red-500">{formErr}</p>}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button className="btn-primary flex-1" disabled={create.isPending} onClick={handleCreate}>
-                Erstellen
-              </button>
-              <button className="btn-secondary" onClick={() => { setShowCreate(false); setFormErr(''); }}>
-                Abbrechen
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
