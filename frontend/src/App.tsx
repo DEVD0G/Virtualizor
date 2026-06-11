@@ -19,7 +19,10 @@ import CreateVmPage from './pages/CreateVmPage';
 import DashboardPage from './pages/DashboardPage';
 import LicensePage from './pages/LicensePage';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import NetworksPage from './pages/NetworksPage';
+import NetworkDetailPage from './pages/NetworkDetailPage';
 import NodeDetailPage from './pages/NodeDetailPage';
 import NodesPage from './pages/NodesPage';
 import StoragePage from './pages/StoragePage';
@@ -93,6 +96,8 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -112,6 +117,7 @@ export default function App() {
         <Route path="/nodes" element={<NodesPage />} />
         <Route path="/nodes/:id" element={<NodeDetailPage />} />
         <Route path="/networks" element={<NetworksPage />} />
+        <Route path="/networks/:id" element={<NetworkDetailPage />} />
         <Route path="/storage" element={<StoragePage />} />
         <Route path="/api-keys" element={<ApiKeysPage />} />
         <Route path="/tasks" element={<TasksPage />} />

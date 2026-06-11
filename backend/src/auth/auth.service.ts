@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 export interface AuthenticatedUser {
   id: string;
@@ -23,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly mail: MailService,
   ) {
     const url = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
     this.redis = new Redis({ host: url.hostname, port: parseInt(url.port || '6379', 10) });
@@ -137,6 +139,38 @@ export class AuthService {
       data: { passwordHash: await argon2.hash(newPassword, { type: argon2.argon2id }) },
     });
     return { ok: true };
+  }
+
+  // ─── Password reset ──────────────────────────────────────────────────────────
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return; // silent - don't reveal whether email exists
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.prisma.passwordResetToken.create({
+      data: { id: randomUUID(), userId: user.id, token, expiresAt },
+    });
+    const resetUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/reset-password?token=${token}`;
+    await this.mail.send(
+      email,
+      'VCP - Passwort zurücksetzen',
+      `<p>Klicken Sie auf den folgenden Link, um Ihr Passwort zurückzusetzen:</p>
+       <p><a href="${resetUrl}">${resetUrl}</a></p>
+       <p>Dieser Link ist 1 Stunde gültig.</p>`,
+    );
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const record = await this.prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new BadRequestException('Ungültiger oder abgelaufener Link');
+    }
+    const hashed = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: record.userId }, data: { passwordHash: hashed } }),
+      this.prisma.passwordResetToken.update({ where: { token }, data: { usedAt: new Date() } }),
+    ]);
   }
 
   // ─── Tokens & session ────────────────────────────────────────────────────────

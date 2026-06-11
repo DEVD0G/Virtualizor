@@ -32,6 +32,15 @@ class UpdateProfileDto {
   @IsString() @MinLength(1) name: string;
 }
 
+class ForgotPasswordDto {
+  @IsEmail() email: string;
+}
+
+class ResetPasswordDto {
+  @IsString() token: string;
+  @IsString() @MinLength(8) newPassword: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -55,6 +64,22 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 900_000, limit: 5 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.auth.forgotPassword(dto.email);
+    return { ok: true };
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 900_000, limit: 5 } })
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto.token, dto.newPassword);
+    return { ok: true };
   }
 
   @Post('logout')

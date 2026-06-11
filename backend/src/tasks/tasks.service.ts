@@ -126,6 +126,10 @@ export class TasksService implements OnModuleInit, OnModuleDestroy {
         void this.updateTask(taskId, { progress });
       });
       await this.updateTask(taskId, { state: 'succeeded', progress: 100, finishedAt: new Date() });
+      // Prune old backups after successful backup task
+      if (kind === 'vm.backup' && payload.vmId) {
+        await this.pruneBackups(payload.vmId, payload.keepLast ?? 3);
+      }
     } catch (err: any) {
       const isLastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
       if (isLastAttempt) {
@@ -150,5 +154,17 @@ export class TasksService implements OnModuleInit, OnModuleDestroy {
       progress: task.progress,
       error: task.error,
     });
+  }
+
+  private async pruneBackups(vmId: string, keepLast: number) {
+    const backups = await this.prisma.backup.findMany({
+      where: { vmId, state: 'completed' },
+      orderBy: { createdAt: 'desc' },
+    });
+    const toDelete = backups.slice(keepLast);
+    for (const b of toDelete) {
+      await this.prisma.backup.delete({ where: { id: b.id } });
+      this.logger.log(`Backup ${b.id} für VM ${vmId} nach Retention-Policy gelöscht`);
+    }
   }
 }

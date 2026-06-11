@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { MailService } from '../mail/mail.service';
 
 export interface AlertRuleDto {
   name: string;
@@ -20,6 +21,7 @@ export class AlertsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly webhooks: WebhooksService,
+    private readonly mail: MailService,
   ) {}
 
   list(nodeId?: string) {
@@ -102,5 +104,23 @@ export class AlertsService {
       nodeId: rule.nodeId ?? null,
       nodeName: rule.node?.name ?? null,
     });
+
+    // Send email to all admins with user.manage permission
+    const admins = await this.prisma.user.findMany({
+      where: {
+        role: {
+          permissions: { some: { permissionId: 'user.manage' } },
+        },
+      },
+      select: { email: true },
+    });
+    for (const admin of admins) {
+      await this.mail.send(
+        admin.email,
+        `VCP Alert: ${rule.name}`,
+        `<p>Alert <strong>${rule.name}</strong> wurde ausgelöst.</p>
+         <p>Metrik: ${rule.metric}, Durchschnitt: ${avg.toFixed(1)}, Schwelle: ${rule.threshold}</p>`,
+      );
+    }
   }
 }

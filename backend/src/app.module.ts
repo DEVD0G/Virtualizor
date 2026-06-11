@@ -23,6 +23,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { ContainersModule } from './containers/containers.module';
 import { SettingsModule } from './settings/settings.module';
 import { SchedulesModule } from './schedules/schedules.module';
+import { MailModule } from './mail/mail.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -55,6 +56,7 @@ import { SeedService } from './bootstrap/seed.service';
     ContainersModule,
     SettingsModule,
     SchedulesModule,
+    MailModule,
   ],
   controllers: [HealthController],
   providers: [

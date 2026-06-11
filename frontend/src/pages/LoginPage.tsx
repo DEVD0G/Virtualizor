@@ -1,5 +1,5 @@
 import { FormEvent, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 export default function LoginPage() {
@@ -117,6 +117,11 @@ export default function LoginPage() {
         <button className="btn-primary w-full justify-center" disabled={busy}>
           {busy ? 'Anmelden…' : 'Anmelden'}
         </button>
+        <div className="text-center">
+          <Link to="/forgot-password" className="text-xs text-brand-500 hover:underline">
+            Passwort vergessen?
+          </Link>
+        </div>
       </form>
     </div>
   );

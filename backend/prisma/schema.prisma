@@ -22,11 +22,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  vms           Vm[]
-  containers    Container[]
-  apiKeys       ApiKey[]
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  vms                  Vm[]
+  containers           Container[]
+  apiKeys              ApiKey[]
+  refreshTokens        RefreshToken[]
+  auditLogs            AuditLog[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@map("users")
 }
@@ -596,6 +597,19 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@map("password_reset_tokens")
 }
 
 // ─── Cron Schedules (cross-resource backup schedules) ────────────────────────

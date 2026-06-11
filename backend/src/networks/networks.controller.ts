@@ -55,6 +55,20 @@ export class NetworksController {
     return this.prisma.network.findMany({ include: { ipPools: true } });
   }
 
+  @Get('networks/:id')
+  @RequirePermissions('network.read')
+  async getOne(@Param('id') id: string) {
+    const net = await this.prisma.network.findUnique({
+      where: { id },
+      include: {
+        ipPools: { include: { _count: { select: { addresses: true } } } },
+        _count: { select: { nics: true } },
+      },
+    });
+    if (!net) throw new NotFoundException('Netzwerk nicht gefunden');
+    return net;
+  }
+
   @Post('networks')
   @RequirePermissions('network.manage')
   create(@Body() dto: CreateNetworkDto) {
