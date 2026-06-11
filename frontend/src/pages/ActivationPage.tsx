@@ -143,7 +143,7 @@ export default function ActivationPage() {
 
   if (!systemState && !loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg)', color: 'var(--tx-2)' }}>
         Lade Systemstatus…
       </div>
     );
@@ -151,7 +151,7 @@ export default function ActivationPage() {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div className="card max-w-md w-full text-center space-y-4">
           <p className="text-red-400 text-sm">
             Systemstatus konnte nicht geladen werden: {loadError}
@@ -171,7 +171,7 @@ export default function ActivationPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div className="card max-w-md w-full text-center space-y-4">
           <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 mx-auto">
             <svg
@@ -187,7 +187,7 @@ export default function ActivationPage() {
           <h2 className="text-lg font-semibold text-emerald-400">
             Lizenz aktiviert — System wird entsperrt…
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
             Sie werden in wenigen Sekunden weitergeleitet.
           </p>
         </div>
@@ -201,7 +201,7 @@ export default function ActivationPage() {
   const installId = systemState!.installId;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-lg space-y-8">
 
         {/* Logo + heading */}
@@ -221,23 +221,23 @@ export default function ActivationPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome to VCP</h1>
-          <p className="text-slate-400 text-sm">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--tx-1)' }}>Welcome to VCP</h1>
+          <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
             Um das Panel zu verwenden, muss eine gültige Lizenz aktiviert werden.
           </p>
         </div>
 
         {/* System info card */}
         <div className="card space-y-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-1)' }}>
             Systemidentifikation
           </h2>
 
           {/* Install ID */}
           <div className="space-y-1">
-            <label className="text-xs text-slate-500">Install-ID</label>
+            <label className="text-xs" style={{ color: 'var(--tx-3)' }}>Install-ID</label>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-slate-800 px-3 py-2 text-xs font-mono text-slate-200 break-all select-all">
+              <code className="flex-1 rounded px-3 py-2 text-xs font-mono break-all select-all" style={{ background: 'var(--surface-2)', color: 'var(--tx-1)' }}>
                 {installId}
               </code>
               <button
@@ -253,9 +253,9 @@ export default function ActivationPage() {
 
           {/* Hardware fingerprint */}
           <div className="space-y-1">
-            <label className="text-xs text-slate-500">Hardware-Fingerprint</label>
+            <label className="text-xs" style={{ color: 'var(--tx-3)' }}>Hardware-Fingerprint</label>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-slate-800 px-3 py-2 text-xs font-mono text-slate-200">
+              <code className="flex-1 rounded px-3 py-2 text-xs font-mono" style={{ background: 'var(--surface-2)', color: 'var(--tx-1)' }}>
                 {abbreviateFingerprint(fp)}
               </code>
               <button
@@ -267,7 +267,7 @@ export default function ActivationPage() {
                 {copiedFingerprint ? 'Kopiert!' : 'Kopieren'}
               </button>
             </div>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
               Wird zur Bindung der Lizenz an diese Hardware verwendet.
             </p>
           </div>
@@ -276,10 +276,10 @@ export default function ActivationPage() {
         {/* Self-Hosted mode — no license server configured */}
         {!systemState!.apiConfigured && (
           <div className="card space-y-4">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-1)' }}>
               Self-Hosted-Modus
             </h2>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm" style={{ color: 'var(--tx-2)' }}>
               Es ist kein License-Server konfiguriert (<code className="text-xs">LICENSE_API_URL</code> /{' '}
               <code className="text-xs">LICENSE_PUBLIC_KEY</code> in der <code className="text-xs">.env</code> leer).
               Das Panel kann ohne Lizenz im Self-Hosted-Modus betrieben werden — ohne Limits und ohne
@@ -304,12 +304,12 @@ export default function ActivationPage() {
         {/* Activation form */}
         {systemState!.apiConfigured && (
         <form onSubmit={handleActivate} className="card space-y-4">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--tx-1)' }}>
             Lizenzschlüssel eingeben
           </h2>
 
           <div className="space-y-1">
-            <label className="text-xs text-slate-500" htmlFor="licenseKey">
+            <label className="text-xs" style={{ color: 'var(--tx-3)' }} htmlFor="licenseKey">
               Lizenzschlüssel
             </label>
             <input
@@ -345,7 +345,7 @@ export default function ActivationPage() {
 
         {/* Footer */}
         {systemState!.apiConfigured && (
-          <p className="text-center text-xs text-slate-600">
+          <p className="text-center text-xs" style={{ color: 'var(--tx-3)' }}>
             Die Lizenzvalidierung erfordert eine Verbindung zum konfigurierten License-Server.
           </p>
         )}

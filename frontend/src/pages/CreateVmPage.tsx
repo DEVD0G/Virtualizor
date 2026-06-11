@@ -134,12 +134,12 @@ export default function CreateVmPage() {
 
         {/* ─ Name ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Allgemein</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Allgemein</h2>
           <div>
             <label className="label">Name</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)}
               pattern="[a-z0-9][-a-z0-9]{2,62}" placeholder="web-01" required />
-            <p className="mt-1 text-xs text-slate-400">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
+            <p className="mt-1 text-xs" style={{ color: 'var(--tx-3)' }}>3–63 Zeichen: a-z, 0-9, Bindestrich</p>
           </div>
           <div>
             <label className="label">Beschreibung (optional)</label>
@@ -150,9 +150,9 @@ export default function CreateVmPage() {
             <label className="label">Tags</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {tags.map((t) => (
-                <span key={t} className="flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
+                <span key={t} className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: 'var(--brand-sub)', color: 'var(--brand)' }}>
                   {t}
-                  <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="text-brand-400 hover:text-brand-600 leading-none">×</button>
+                  <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="leading-none" style={{ color: 'var(--brand)' }}>×</button>
                 </span>
               ))}
             </div>
@@ -169,7 +169,7 @@ export default function CreateVmPage() {
 
         {/* ─ Hardware ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Hardware</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Hardware</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">vCPUs (gesamt)</label>
@@ -205,11 +205,11 @@ export default function CreateVmPage() {
           {/* BIOS / Firmware */}
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-brand-500"
+              <input type="checkbox" className="h-4 w-4 rounded accent-brand-500" style={{ borderColor: 'var(--border)' }}
                 checked={uefi} onChange={(e) => setUefi(e.target.checked)} />
               <span className="text-sm font-medium">UEFI / OVMF (statt SeaBIOS)</span>
             </label>
-            <span className="text-xs text-slate-400">für Windows 11, Secure Boot</span>
+            <span className="text-xs" style={{ color: 'var(--tx-3)' }}>für Windows 11, Secure Boot</span>
           </div>
 
           {/* Boot-Reihenfolge */}
@@ -218,14 +218,14 @@ export default function CreateVmPage() {
             <div className="flex flex-wrap gap-2">
               {BOOT_ORDER_OPTIONS.map((opt) => (
                 <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-brand-500"
+                  <input type="checkbox" className="h-4 w-4 rounded accent-brand-500" style={{ borderColor: 'var(--border)' }}
                     checked={bootOrder.includes(opt.value)}
                     onChange={() => toggleBootEntry(opt.value)} />
                   {opt.label}
                 </label>
               ))}
             </div>
-            <p className="mt-1 text-xs text-slate-400">Reihenfolge = Reihenfolge der Auswahl</p>
+            <p className="mt-1 text-xs" style={{ color: 'var(--tx-3)' }}>Reihenfolge = Reihenfolge der Auswahl</p>
           </div>
 
           {/* Disks */}
@@ -268,7 +268,7 @@ export default function CreateVmPage() {
 
         {/* ─ Betriebssystem ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Betriebssystem</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Betriebssystem</h2>
           <div>
             <label className="label">OS-Template</label>
             <select className="input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>

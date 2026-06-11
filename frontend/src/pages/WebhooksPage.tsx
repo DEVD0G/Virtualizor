@@ -93,7 +93,8 @@ export default function WebhooksPage() {
               {hooks?.map((h) => (
                 <tr
                   key={h.id}
-                  className={`cursor-pointer ${selectedId === h.id ? 'bg-brand-50 dark:bg-brand-500/10' : ''}`}
+                  className="cursor-pointer"
+                  style={selectedId === h.id ? { background: 'var(--brand-sub)' } : undefined}
                   onClick={() => setSelectedId(h.id === selectedId ? null : h.id)}
                 >
                   <td className="font-medium">{h.name}</td>
@@ -130,7 +131,8 @@ export default function WebhooksPage() {
             <h2 className="mb-3 font-semibold">Letzte Zustellungen</h2>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {deliveries?.map((d) => (
-                <div key={d.id} className={`rounded-lg p-2 text-xs border ${d.success ? 'border-emerald-200 bg-emerald-500/10 dark:border-emerald-800' : 'border-red-200 bg-red-500/10 dark:border-red-800'}`}>
+                <div key={d.id} className={`rounded-lg p-2 text-xs ${d.success ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}
+                  style={{ border: `1px solid ${d.success ? 'rgb(52 211 153 / 0.3)' : 'rgb(248 113 113 / 0.3)'}` }}>
                   <div className="flex justify-between mb-1">
                     <span className="font-mono font-medium">{d.event}</span>
                     <span className={d.success ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>

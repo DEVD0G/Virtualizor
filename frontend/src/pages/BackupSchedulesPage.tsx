@@ -235,10 +235,10 @@ function NewScheduleForm({ onClose }: { onClose: () => void }) {
                 type="button"
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   cronExpr === p.value
-                    ? 'border-brand-500 bg-brand-500/10 text-brand-600 dark:text-brand-400'
+                    ? 'border-brand-500 bg-brand-500/10'
                     : ''
                 }`}
-              style={cronExpr !== p.value ? { borderColor: 'var(--border)', color: 'var(--tx-2)' } : undefined}
+              style={cronExpr === p.value ? { color: 'var(--brand)' } : { borderColor: 'var(--border)', color: 'var(--tx-2)' }}
                 onClick={() => setCronExpr(p.value)}
               >
                 {p.label}

@@ -66,13 +66,13 @@ export default function CreateContainerPage() {
 
         {/* ─ Allgemein ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Allgemein</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Allgemein</h2>
           <div>
             <label className="label">Name</label>
             <input className="input" value={name}
               onChange={(e) => setName(e.target.value.replace(/[^a-z0-9-]/g, ''))}
               placeholder="mein-container" required />
-            <p className="mt-1 text-xs text-slate-400">3–63 Zeichen: a-z, 0-9, Bindestrich</p>
+            <p className="mt-1 text-xs" style={{ color: 'var(--tx-3)' }}>3–63 Zeichen: a-z, 0-9, Bindestrich</p>
           </div>
           <div>
             <label className="label">Beschreibung (optional)</label>
@@ -83,9 +83,9 @@ export default function CreateContainerPage() {
             <label className="label">Tags</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {tags.map((t) => (
-                <span key={t} className="flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
+                <span key={t} className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: 'var(--brand-sub)', color: 'var(--brand)' }}>
                   {t}
-                  <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="text-brand-400 hover:text-brand-600 leading-none">×</button>
+                  <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="leading-none" style={{ color: 'var(--brand)' }}>×</button>
                 </span>
               ))}
             </div>
@@ -102,7 +102,7 @@ export default function CreateContainerPage() {
 
         {/* ─ Betriebssystem ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Betriebssystem</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Betriebssystem</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {OS_TEMPLATES.map((t) => (
               <button
@@ -111,12 +111,15 @@ export default function CreateContainerPage() {
                 onClick={() => setOsTemplate(t.id)}
                 className={`rounded-lg border p-3 text-left text-xs transition-colors ${
                   osTemplate === t.id
-                    ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300'
-                    : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                    ? 'border-brand-500'
+                    : ''
                 }`}
+                style={osTemplate === t.id
+                  ? { background: 'var(--brand-sub)', color: 'var(--brand)' }
+                  : { borderColor: 'var(--border)' }}
               >
                 <div className="font-medium">{t.label.split(' ')[0]}</div>
-                <div className="text-slate-400 text-[10px] mt-0.5">{t.label.split(' ').slice(1).join(' ')}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--tx-3)' }}>{t.label.split(' ').slice(1).join(' ')}</div>
               </button>
             ))}
           </div>
@@ -124,7 +127,7 @@ export default function CreateContainerPage() {
 
         {/* ─ Hardware ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Hardware</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Hardware</h2>
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="label">vCPUs</label>
@@ -135,7 +138,7 @@ export default function CreateContainerPage() {
               <label className="label">RAM (MiB)</label>
               <input className="input" type="number" min={128} step={128} value={memoryMb}
                 onChange={(e) => setMemoryMb(+e.target.value)} />
-              <p className="mt-0.5 text-xs text-slate-400">{memoryMb >= 1024 ? `${(memoryMb / 1024).toFixed(1)} GiB` : `${memoryMb} MiB`}</p>
+              <p className="mt-0.5 text-xs" style={{ color: 'var(--tx-3)' }}>{memoryMb >= 1024 ? `${(memoryMb / 1024).toFixed(1)} GiB` : `${memoryMb} MiB`}</p>
             </div>
             <div>
               <label className="label">Disk (GB)</label>
@@ -147,7 +150,7 @@ export default function CreateContainerPage() {
 
         {/* ─ Netzwerk & Node ─ */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">Netzwerk & Node</h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: 'var(--tx-2)' }}>Netzwerk & Node</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Node</label>

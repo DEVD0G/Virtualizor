@@ -69,14 +69,14 @@ export default function ApiKeysPage() {
             API-Key erstellt — wird nur einmal angezeigt!
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 rounded bg-slate-800 px-3 py-2 text-xs font-mono text-slate-200 break-all select-all">
+            <code className="flex-1 rounded px-3 py-2 text-xs font-mono break-all select-all" style={{ background: 'var(--surface-2)', color: 'var(--tx-1)' }}>
               {newKey}
             </code>
             <button className="btn-secondary shrink-0 text-xs px-3" onClick={() => copyKey(newKey)}>
               {copiedKey ? 'Kopiert!' : 'Kopieren'}
             </button>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs" style={{ color: 'var(--tx-2)' }}>
             Diesen Key sicher speichern. Er kann nicht erneut abgerufen werden.
           </p>
         </div>
@@ -90,7 +90,7 @@ export default function ApiKeysPage() {
         >
           <h3 className="font-semibold">Neuer API-Key</h3>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Name / Beschreibung</label>
+            <label className="label">Name / Beschreibung</label>
             <input
               className="input w-full"
               value={name}
@@ -100,7 +100,7 @@ export default function ApiKeysPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-2">Berechtigungen (Scopes)</label>
+            <label className="label">Berechtigungen (Scopes)</label>
             <div className="grid grid-cols-3 gap-2">
               {availableScopes.map((s) => (
                 <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -126,7 +126,7 @@ export default function ApiKeysPage() {
 
       {/* Key list */}
       {isLoading ? (
-        <div className="text-slate-400">Lade…</div>
+        <div style={{ color: 'var(--tx-3)' }}>Lade…</div>
       ) : (
         <table className="table-base">
           <thead>
@@ -136,20 +136,20 @@ export default function ApiKeysPage() {
             {keys?.map((k) => (
               <tr key={k.id}>
                 <td className="font-medium">{k.name}</td>
-                <td className="font-mono text-xs text-slate-400">{k.prefix}_…</td>
+                <td className="font-mono text-xs" style={{ color: 'var(--tx-3)' }}>{k.prefix}_…</td>
                 <td>
                   <div className="flex flex-wrap gap-1">
                     {k.scopes.map((s) => (
-                      <span key={s} className="rounded bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono">
+                      <span key={s} className="rounded px-1.5 py-0.5 text-xs font-mono" style={{ background: 'var(--surface-3)', color: 'var(--tx-2)' }}>
                         {s}
                       </span>
                     ))}
                   </div>
                 </td>
-                <td className="text-slate-500 text-sm">
+                <td className="text-sm" style={{ color: 'var(--tx-2)' }}>
                   {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : '—'}
                 </td>
-                <td className="text-slate-500 text-sm">{new Date(k.createdAt).toLocaleDateString()}</td>
+                <td className="text-sm" style={{ color: 'var(--tx-2)' }}>{new Date(k.createdAt).toLocaleDateString()}</td>
                 <td className="text-right">
                   <button
                     className="btn-danger text-xs"
@@ -161,7 +161,7 @@ export default function ApiKeysPage() {
               </tr>
             ))}
             {!keys?.length && (
-              <tr><td colSpan={6} className="text-center text-slate-400">Keine API-Keys</td></tr>
+              <tr><td colSpan={6} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine API-Keys</td></tr>
             )}
           </tbody>
         </table>

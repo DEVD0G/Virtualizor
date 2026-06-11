@@ -147,7 +147,7 @@ export default function AiAssistantPage() {
         <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 flex-shrink-0">
           {QUICK_PROMPTS.map((p) => (
             <button key={p.label} onClick={() => send(p.text)}
-              className="card text-left hover:border-brand-300 hover:bg-brand-50/50 dark:hover:bg-brand-500/5 dark:hover:border-brand-500/40 transition-colors cursor-pointer">
+              className="card text-left hover:border-brand-500/40 hover:bg-brand-500/5 transition-colors cursor-pointer">
               <div className="text-sm font-medium">{p.label}</div>
               <div className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--tx-3)' }}>{p.text}</div>
             </button>

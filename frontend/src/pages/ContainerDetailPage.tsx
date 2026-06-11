@@ -31,7 +31,7 @@ export default function ContainerDetailPage() {
     onSettled: invalidate,
   });
 
-  if (!ct) return <div className="text-slate-400">Lade…</div>;
+  if (!ct) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
 
   return (
     <div className="space-y-6">
@@ -40,7 +40,7 @@ export default function ContainerDetailPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">{ct.name}</h1>
           <StatusBadge status={ct.state} />
-          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-500 dark:bg-slate-800">
+          <span className="rounded px-2 py-0.5 text-xs font-mono" style={{ background: 'var(--surface-2)', color: 'var(--tx-2)' }}>
             {ct.osTemplate}
           </span>
         </div>
@@ -99,33 +99,33 @@ export default function ContainerDetailPage() {
           </div>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-slate-500">vCPUs</dt><dd>{ct.vcpus}</dd>
+              <dt style={{ color: 'var(--tx-2)' }}>vCPUs</dt><dd>{ct.vcpus}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">RAM</dt><dd>{(ct.memoryMb / 1024).toFixed(1)} GiB</dd>
+              <dt style={{ color: 'var(--tx-2)' }}>RAM</dt><dd>{(ct.memoryMb / 1024).toFixed(1)} GiB</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Disk</dt><dd>{ct.diskGb} GB</dd>
+              <dt style={{ color: 'var(--tx-2)' }}>Disk</dt><dd>{ct.diskGb} GB</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">IP-Adresse</dt>
+              <dt style={{ color: 'var(--tx-2)' }}>IP-Adresse</dt>
               <dd className="font-mono text-xs">{ct.ipAddress ?? '—'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Node</dt><dd>{ct.node.name}</dd>
+              <dt style={{ color: 'var(--tx-2)' }}>Node</dt><dd>{ct.node.name}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Besitzer</dt>
+              <dt style={{ color: 'var(--tx-2)' }}>Besitzer</dt>
               <dd>{ct.owner.name} ({ct.owner.email})</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Erstellt</dt>
+              <dt style={{ color: 'var(--tx-2)' }}>Erstellt</dt>
               <dd>{new Date(ct.createdAt).toLocaleString()}</dd>
             </div>
           </dl>
 
           {showResize && (
-            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">vCPUs</label>
@@ -153,14 +153,14 @@ export default function ContainerDetailPage() {
 
           {/* Tags & Description */}
           {(ct.description || ct.tags.length > 0) && !showMeta && (
-            <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800 space-y-2 text-sm">
+            <div className="mt-4 border-t pt-4 space-y-2 text-sm" style={{ borderColor: 'var(--border)' }}>
               {ct.description && (
-                <p className="italic text-slate-600 dark:text-slate-400">{ct.description}</p>
+                <p className="italic" style={{ color: 'var(--tx-1)' }}>{ct.description}</p>
               )}
               {ct.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {ct.tags.map((t) => (
-                    <span key={t} className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
+                    <span key={t} className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'var(--brand-sub)', color: 'var(--brand)' }}>
                       {t}
                     </span>
                   ))}
@@ -170,7 +170,7 @@ export default function ContainerDetailPage() {
           )}
           {can('vm.manage') && !showMeta && (
             <button
-              className="mt-3 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              className="mt-3 text-xs" style={{ color: 'var(--tx-3)' }}
               onClick={() => {
                 setMetaForm({ description: ct.description ?? '', tags: ct.tags.join(', ') });
                 setShowMeta(true);
@@ -179,7 +179,7 @@ export default function ContainerDetailPage() {
             </button>
           )}
           {showMeta && (
-            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <div>
                 <label className="label">Beschreibung</label>
                 <input className="input" value={metaForm.description}

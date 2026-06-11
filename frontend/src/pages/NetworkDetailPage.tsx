@@ -106,7 +106,7 @@ export default function NetworkDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['port-forwards', id] }),
   });
 
-  if (isLoading) return <div className="text-slate-400">Lade…</div>;
+  if (isLoading) return <div style={{ color: 'var(--tx-3)' }}>Lade…</div>;
   if (error || !network) return <div className="text-red-500">Netzwerk nicht gefunden</div>;
 
   const tabs: { key: Tab; label: string }[] = [
@@ -121,7 +121,7 @@ export default function NetworkDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <button
-            className="mb-1 text-xs text-slate-500 hover:underline"
+            className="mb-1 text-xs hover:underline" style={{ color: 'var(--tx-2)' }}
             onClick={() => navigate('/networks')}
           >
             ← Netzwerke
@@ -131,7 +131,7 @@ export default function NetworkDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 dark:border-slate-700">
+      <div className="border-b" style={{ borderColor: 'var(--border)' }}>
         <nav className="-mb-px flex gap-6">
           {tabs.map((tab) => (
             <button
@@ -139,9 +139,12 @@ export default function NetworkDetailPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`pb-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key
-                  ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  ? 'border-b-2 border-brand-500'
+                  : ''
               }`}
+              style={activeTab === tab.key
+                ? { color: 'var(--brand)' }
+                : { color: 'var(--tx-2)' }}
             >
               {tab.label}
             </button>
@@ -155,36 +158,36 @@ export default function NetworkDetailPage() {
           <h2 className="font-semibold">Netzwerkdetails</h2>
           <dl className="grid gap-3 sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-slate-500">Name</dt>
+              <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>Name</dt>
               <dd className="font-medium">{network.name}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Modus</dt>
+              <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>Modus</dt>
               <dd className="font-medium capitalize">{network.mode}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Bridge-Interface</dt>
+              <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>Bridge-Interface</dt>
               <dd className="font-mono font-medium">{network.bridge}</dd>
             </div>
             {network.vlanTag != null && (
               <div>
-                <dt className="text-xs text-slate-500">VLAN Tag</dt>
+                <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>VLAN Tag</dt>
                 <dd className="font-medium">{network.vlanTag}</dd>
               </div>
             )}
             {network.cidr && (
               <div>
-                <dt className="text-xs text-slate-500">CIDR</dt>
+                <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>CIDR</dt>
                 <dd className="font-mono font-medium">{network.cidr}</dd>
               </div>
             )}
             <div>
-              <dt className="text-xs text-slate-500">Verbundene VMs/Container</dt>
+              <dt className="text-xs" style={{ color: 'var(--tx-2)' }}>Verbundene VMs/Container</dt>
               <dd className="font-medium">{network._count?.nics ?? 0}</dd>
             </div>
           </dl>
           {can('network.manage') && (
-            <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
               <button
                 className="btn-danger"
                 onClick={() => {
@@ -265,7 +268,7 @@ export default function NetworkDetailPage() {
           )}
 
           {network.ipPools.length === 0 ? (
-            <div className="card text-center text-slate-400">Keine IP-Pools konfiguriert.</div>
+            <div className="card text-center" style={{ color: 'var(--tx-3)' }}>Keine IP-Pools konfiguriert.</div>
           ) : (
             <div className="card">
               <table className="table-base">
@@ -376,7 +379,7 @@ export default function NetworkDetailPage() {
           )}
 
           {portForwards.length === 0 ? (
-            <div className="card text-center text-slate-400">Keine Port-Forwarding-Regeln.</div>
+            <div className="card text-center" style={{ color: 'var(--tx-3)' }}>Keine Port-Forwarding-Regeln.</div>
           ) : (
             <div className="card">
               <table className="table-base">

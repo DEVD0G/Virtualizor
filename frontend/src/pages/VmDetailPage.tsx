@@ -763,8 +763,8 @@ export default function VmDetailPage() {
             <tbody>
               {firewallRules?.map((r) => (
                 <tr key={r.id}>
-                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.direction === 'in' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400'}`}>{r.direction === 'in' ? '↓ Ein' : '↑ Aus'}</span></td>
-                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.action === 'accept' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>{r.action === 'accept' ? 'Erlaubt' : 'Geblockt'}</span></td>
+                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.direction === 'in' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' : 'bg-purple-500/15 text-purple-700 dark:text-purple-400'}`}>{r.direction === 'in' ? '↓ Ein' : '↑ Aus'}</span></td>
+                  <td><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.action === 'accept' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-red-500/15 text-red-600 dark:text-red-400'}`}>{r.action === 'accept' ? 'Erlaubt' : 'Geblockt'}</span></td>
                   <td className="uppercase text-xs font-mono">{r.protocol}</td>
                   <td className="text-xs">{r.portFrom ? `${r.portFrom}${r.portTo && r.portTo !== r.portFrom ? `–${r.portTo}` : ''}` : '—'}</td>
                   <td className="font-mono text-xs">{r.cidr}</td>
@@ -777,7 +777,7 @@ export default function VmDetailPage() {
                   </td>
                 </tr>
               ))}
-              {!firewallRules?.length && <tr><td colSpan={7} className="text-center text-slate-400">Keine Regeln</td></tr>}
+              {!firewallRules?.length && <tr><td colSpan={7} className="text-center" style={{ color: 'var(--tx-3)' }}>Keine Regeln</td></tr>}
             </tbody>
           </table>
         </div>
