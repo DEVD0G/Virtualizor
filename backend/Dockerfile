@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY prisma ./prisma
 RUN npx prisma generate
 COPY tsconfig.json nest-cli.json ./
@@ -13,7 +13,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache openssl
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 COPY prisma ./prisma
 RUN npx prisma generate
 COPY --from=build /app/dist ./dist
